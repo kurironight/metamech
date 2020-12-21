@@ -71,10 +71,13 @@ edges_indices = np.array([
     [82, 83], [82, 84], [83, 84],
 ])
 
+edges_thickness = np.ones(len(edges_indices))
+
 # construct the lattice
 lattice = Lattice(
     nodes_positions=nodes_positions,
     edges_indices=edges_indices,
+    edges_thickness=edges_thickness,
     linear_stiffness=10,
     angular_stiffness=0.2
 )

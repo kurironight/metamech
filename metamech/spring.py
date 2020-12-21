@@ -35,17 +35,24 @@ from ordered_set import OrderedSet
 if TYPE_CHECKING:
     from .node import Node
 
+REF_LENGTH = 1
+REF_THICKNESS = 1
+
 
 class LinearSpring:
     def __init__(
         self,
         nodes: Tuple["Node", "Node"],
         stiffness: float,
+        thickness: float,
     ) -> None:
         """Linear spring between two nodes"""
         self._nodes = nodes
-        self.stiffness = stiffness
+        self._edge_thickness = thickness  # ADD
         self.resting_length = self._get_resting_length()
+        self.stiffness = stiffness / \
+            (self.resting_length/REF_LENGTH) * \
+            (self._edge_thickness/REF_THICKNESS)  # ADD
         self._neighbouring_linear_springs: Set["LinearSpring"] = OrderedSet()
 
     def _get_resting_length(self) -> float:

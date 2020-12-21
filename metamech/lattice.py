@@ -46,9 +46,11 @@ class Lattice:
         self,
         nodes_positions: Dict[Tuple[int, int], float],
         edges_indices: Dict[Tuple[int, int], int],
+        edges_thickness: List,
         linear_stiffness: float = 10,
         angular_stiffness: float = 0.2
     ) -> None:
+        # ADD
         """
         Create a lattice object.
 
@@ -106,6 +108,7 @@ class Lattice:
         elif len(nodes_positions.T) == 2:
             self._nodes_positions = nodes_positions
         self._edges_indices = edges_indices
+        self.edges_thickness = edges_thickness  # ADD
         self._linear_stiffness = linear_stiffness
         self._angular_stiffness = angular_stiffness
 
@@ -216,10 +219,10 @@ class Lattice:
         jj = self._edges_indices.T[1]
         self._possible_edges = [
             LinearSpring(
-                nodes=(self.nodes[i], self.nodes[j]), stiffness=stiffness)
-            for i, j, stiffness
-            in zip(ii, jj, self._edge_stiffness)
-        ]
+                nodes=(self.nodes[i], self.nodes[j]), stiffness=stiffness,
+                thickness=thickness)
+            for i, j, stiffness, thickness
+            in zip(ii, jj, self._edge_stiffness, self.edges_thickness)]  # ADD
 
     def _store_edges_neighbours(self):
         """store the edge neighbours of each edge"""

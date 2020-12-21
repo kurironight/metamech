@@ -129,7 +129,8 @@ def _show_actuator_force(
     # create a new lattice holding only the active edges
     lattice_displaced = Lattice(
         nodes_positions=nodes_positions_displaced,
-        edges_indices=np.array(active_edges)
+        edges_indices=np.array(active_edges),
+        edges_thickness=actuator.lattice.edges_thickness,  # ADD
     )
     for edge in lattice_displaced._possible_edges:
         lattice_displaced.flip_edge(edge)
@@ -211,7 +212,8 @@ def _show_actuator_displacement(
     # create a new lattice holding only the active edges
     lattice_displaced = Lattice(
         nodes_positions=nodes_positions_displaced,
-        edges_indices=np.array(active_edges)
+        edges_indices=np.array(active_edges),
+        edges_thickness=actuator.lattice.edges_thickness,  # ADD
     )
     for edge in lattice_displaced._possible_edges:
         lattice_displaced.flip_edge(edge)
