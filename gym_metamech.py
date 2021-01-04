@@ -1,35 +1,37 @@
 import numpy as np
 import gym
 from tools.graph import convert_edge_indices_to_adj, convert_adj_to_edge_indices
+from tools.lattice_preprocess import make_main_node_edge_info
 from metamech.lattice import Lattice
 from metamech.actuator import Actuator
 
+
 # 初期のノードの状態を抽出
-new_node_pos = np.array([[6.5,    6.9282],
-                         [7.,    7.79423],
-                         [7.5,    6.9282],
-                         [8.,    7.79423],
-                         [0.,    7.79423],
-                         [0.5,    6.9282],
-                         [1.,    7.79423],
-                         [1.5,    6.9282]])
+origin_nodes_positions = np.array([
+    [0., 0.86603], [0.5, 0.], [1., 0.86603], [1.5, 0.],
+    [2., 0.86603], [2.5, 0.], [3., 0.86603], [3.5, 0.],
+    [4., 0.86603], [4.5, 0.], [5., 0.86603], [5.5, 0.],
+    [6., 0.86603], [6.5, 0.], [7., 0.86603], [7.5, 0.],
+    [8., 0.86603], [0., 2.59808], [0.5, 1.73205], [1., 2.59808],
+    [1.5, 1.73205], [2., 2.59808], [2.5, 1.73205], [3., 2.59808],
+    [3.5, 1.73205], [4., 2.59808], [4.5, 1.73205], [5., 2.59808],
+    [5.5, 1.73205], [6., 2.59808], [6.5, 1.73205], [7., 2.59808],
+    [7.5, 1.73205], [8., 2.59808], [0., 4.33013], [0.5, 3.4641],
+    [1., 4.33013], [1.5, 3.4641], [2., 4.33013], [2.5, 3.4641],
+    [3., 4.33013], [3.5, 3.4641], [4., 4.33013], [4.5, 3.4641],
+    [5., 4.33013], [5.5, 3.4641], [6., 4.33013], [6.5, 3.4641],
+    [7., 4.33013], [7.5, 3.4641], [8., 4.33013], [0., 6.06218],
+    [0.5, 5.19615], [1., 6.06218], [1.5, 5.19615], [2., 6.06218],
+    [2.5, 5.19615], [3., 6.06218], [3.5, 5.19615], [4., 6.06218],
+    [4.5, 5.19615], [5., 6.06218], [5.5, 5.19615], [6., 6.06218],
+    [6.5, 5.19615], [7., 6.06218], [7.5, 5.19615], [8., 6.06218],
+    [0., 7.79423], [0.5, 6.9282], [1., 7.79423], [1.5, 6.9282],
+    [2., 7.79423], [2.5, 6.9282], [3., 7.79423], [3.5, 6.9282],
+    [4., 7.79423], [4.5, 6.9282], [5., 7.79423], [5.5, 6.9282],
+    [6., 7.79423], [6.5, 6.9282], [7., 7.79423], [7.5, 6.9282],
+    [8., 7.79423]])
 
-new_input_nodes = np.array([0, 1, 2, 3])
-new_input_vectors = np.array([
-    [0., -0.1],
-    [0., -0.1],
-    [0., -0.1],
-    [0., -0.1]
-])
-new_output_nodes = np.array([4, 5, 6, 7])
-new_output_vectors = np.array([
-    [-1, 0],
-    [-1, 0],
-    [-1, 0],
-    [-1, 0],
-])
-
-edges_indices = np.array([
+origin_edges_indices = np.array([
     [0,  1], [0,  2], [0, 18], [1,  2], [1,  3], [2, 18],
     [2,  3], [2,  4], [2, 20], [3,  5], [3,  4], [4,  5],
     [4, 22], [4, 20], [4,  6], [5,  7], [5,  6], [6, 22],
@@ -68,19 +70,28 @@ edges_indices = np.array([
     [79, 80], [79, 81], [80, 81], [80, 82], [81, 83], [81, 82],
     [82, 83], [82, 84], [83, 84],
 ])
-vectors = np.array([81, 82, 83, 84, 68, 69, 70, 71])
 
-# edges_indicesのうち，初期エッジ情報のみを抽出する
-edges_bool = np.isin(edges_indices, vectors)
-edges_bool = edges_bool[:, 0] & edges_bool[:, 1]
-edges_indices = edges_indices[edges_bool]
+origin_input_nodes = [81, 82, 83, 84]
+origin_input_vectors = np.array([
+    [0., -0.1],
+    [0., -0.1],
+    [0., -0.1],
+    [0., -0.1]
+])
 
-new_edges_indices = np.zeros(shape=edges_indices.shape, dtype=int)
-for i, v in enumerate(vectors):
-    mask = edges_indices == v
-    new_edges_indices[mask] = i
+origin_output_nodes = [68, 69, 70, 71]
+origin_output_vectors = np.array([
+    [-1, 0],
+    [-1, 0],
+    [-1, 0],
+    [-1, 0],
+])
 
-new_edges_thickness = np.ones(len(new_edges_indices))
+origin_frozen_nodes = [1, 3, 5, 7, 9, 11, 13, 15]
+
+# gymに入力する要素を抽出
+new_node_pos, new_input_nodes, new_input_vectors, new_output_nodes, new_output_vectors, new_frozen_nodes, new_edges_indices, new_edges_thickness = make_main_node_edge_info(origin_nodes_positions, origin_edges_indices, origin_input_nodes, origin_input_vectors,
+                                                                                                                                                                            origin_output_nodes, origin_output_vectors, origin_frozen_nodes)
 
 MAX_NODE = 20
 
@@ -187,8 +198,8 @@ class MetamechGym(gym.Env):
         return self.current_obs, 1, False, {}
 
     # 環境の描画
-    def render(self, mode='console', close=False):
-        # TODO あとでレンダー出来るようにする
+    # def render(self, mode='console', close=False):
+    # TODO あとでレンダー出来るようにする
 
 
 env = MetamechGym(new_node_pos, new_input_nodes, new_input_vectors,
