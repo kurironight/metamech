@@ -94,7 +94,7 @@ origin_frozen_nodes = [1, 3, 5, 7, 9, 11, 13, 15]
 new_node_pos, new_input_nodes, new_input_vectors, new_output_nodes, new_output_vectors, new_frozen_nodes, new_edges_indices, new_edges_thickness = make_main_node_edge_info(origin_nodes_positions, origin_edges_indices, origin_input_nodes, origin_input_vectors,
                                                                                                                                                                             origin_output_nodes, origin_output_vectors, origin_frozen_nodes)
 
-MAX_NODE = 20
+MAX_NODE = 100
 LINEAR_STIFFNESS = 10
 ANGULAR_STIFFNESS = 0.2
 
@@ -148,28 +148,30 @@ class MetamechGym(gym.Env):
         efficiency = self._calculate_efficiency()
         return self.current_obs
 
-    def _remove_padding_from_current_obs(self):
-        """self.current_obsのうち，PADDINGを除いた部分を抽出
+    def random_action(self):
+        """強化学習を用いない場合に確認するための方針
+
+        Returns:
+            action
         """
-        nodes_mask = self.current_obs['nodes'][:, 0] != -1  # 意味を成さない部分を除外
-        vaild_nodes = self.current_obs['nodes'][nodes_mask]
+        action = env.action_space.sample()
 
-        # 意味を成さない部分を除外
-        thickness_mask = self.current_obs['edges']['thickness'] != -1
-        vaild_edges_thickness = self.current_obs['edges']['thickness'][thickness_mask]
+        # padding部分を排除した情報を抽出
+        nodes_pos, adj, edges_thickness = self._extract_non_padding_status_from_current_obs()
+        node_num = nodes_pos.shape[0]
 
-        node_num = vaild_nodes.shape[0]
-        valid_adj = self.current_obs['edges']['adj'][:node_num, :node_num]
+        action['which_node'][0] = np.random.choice(np.arange(node_num))
+        action['which_node'][1] = np.random.choice(
+            np.delete(np.arange(node_num+1), action['which_node'][0]))
 
-        return vaild_nodes, valid_adj, vaild_edges_thickness
-
-    # 環境の１ステップ実行
+        return action
 
     def step(self, action):
 
         if action['end']:  # 終了条件を満たす場合
+            # TODO 本来はこれは，外側の方で行うこと
             efficiency = self._calculate_efficiency()
-            if self._confirm_graph_is_connected():
+            if self.confirm_graph_is_connected():
                 reward = -1
             elif efficiency < 0:
                 reward = 0
@@ -180,7 +182,7 @@ class MetamechGym(gym.Env):
             return obs, reward, True, {}
 
         # padding部分を排除した情報を抽出
-        nodes_pos, adj, edges_thickness = self._remove_padding_from_current_obs()
+        nodes_pos, adj, edges_thickness = self._extract_non_padding_status_from_current_obs()
         node_num = nodes_pos.shape[0]
         edges_indices = convert_adj_to_edge_indices(adj)
 
@@ -204,10 +206,10 @@ class MetamechGym(gym.Env):
 
         return self.current_obs, 1, False, {}
 
-    def _confirm_graph_is_connected(self):
+    def confirm_graph_is_connected(self):
         # グラフが全て接続しているか確認
 
-        nodes_pos, adj, edges_thickness = self._remove_padding_from_current_obs()
+        nodes_pos, adj, edges_thickness = self._extract_non_padding_status_from_current_obs()
         edges_indices = convert_adj_to_edge_indices(adj)
 
         G = nx.Graph()
@@ -216,8 +218,23 @@ class MetamechGym(gym.Env):
 
         return nx.is_connected(G)
 
+    def _extract_non_padding_status_from_current_obs(self):
+        """self.current_obsのうち，PADDINGを除いた部分を抽出
+        """
+        nodes_mask = self.current_obs['nodes'][:, 0] != -1  # 意味を成さない部分を除外
+        vaild_nodes = self.current_obs['nodes'][nodes_mask]
+
+        # 意味を成さない部分を除外
+        thickness_mask = self.current_obs['edges']['thickness'] != -1
+        vaild_edges_thickness = self.current_obs['edges']['thickness'][thickness_mask]
+
+        node_num = vaild_nodes.shape[0]
+        valid_adj = self.current_obs['edges']['adj'][:node_num, :node_num]
+
+        return vaild_nodes, valid_adj, vaild_edges_thickness
+
     def _calculate_efficiency(self):
-        nodes_pos, adj, edges_thickness = self._remove_padding_from_current_obs()
+        nodes_pos, adj, edges_thickness = self._extract_non_padding_status_from_current_obs()
         edges_indices = convert_adj_to_edge_indices(adj)
 
         lattice = Lattice(
@@ -264,9 +281,9 @@ env = MetamechGym(new_node_pos, new_input_nodes, new_input_vectors,
 # １エピソードのループ
 state = env.reset()
 
-while True:
+for i in range(70):
     # ランダム行動の取得
-    action = env.action_space.sample()
+    action = env.random_action()
     # １ステップの実行
     state, reward, done, info = env.step(action)
     print('reward:', reward)
