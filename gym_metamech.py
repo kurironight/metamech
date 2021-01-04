@@ -105,13 +105,13 @@ class MetamechGym(gym.Env):
         # 初期条件の指定
         self.max_node = MAX_NODE  # ノードの最大数
 
-        self.node_pos = node_pos
+        self.first_node_pos = node_pos
         self.input_nodes = input_nodes
         self.input_vectors = input_vectors
         self.output_nodes = output_nodes
         self.output_vectors = output_vectors
-        self.edges_indices = edges_indices
-        self.edges_thickness = edges_thickness
+        self.first_edges_indices = edges_indices
+        self.first_edges_thickness = edges_thickness
         # current_status
         self.current_obs = {}
 
@@ -141,12 +141,12 @@ class MetamechGym(gym.Env):
         self.current_obs['edges'] = {
             'adj': adj,
             'thickness': np.pad(
-                self.edges_thickness, (0, self.max_node*self.max_node-self.edges_thickness.shape[0]), constant_values=-1)}
+                edges_thickness, (0, self.max_node*self.max_node-edges_thickness.shape[0]), constant_values=-1)}
 
     # 環境のリセット
     def reset(self):
         self.renew_current_obs(
-            self.node_pos, self.edges_indices, self.edges_thickness)
+            self.first_node_pos, self.first_edges_indices, self.first_edges_thickness)
         return self.current_obs
 
     def _remove_padding_from_current_obs(self):
