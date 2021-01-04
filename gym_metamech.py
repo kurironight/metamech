@@ -100,8 +100,9 @@ class MetamechGym(gym.Env):
     # 定数定義
 
     # 初期化
-    def __init__(self, node_pos, input_nodes, input_vectors, output_nodes, output_vectors, edges_indices, edges_thickness):
+    def __init__(self, node_pos, input_nodes, input_vectors, output_nodes, output_vectors, frozen_nodes, edges_indices, edges_thickness):
         super(MetamechGym, self).__init__()
+
         # 初期条件の指定
         self.max_node = MAX_NODE  # ノードの最大数
 
@@ -110,8 +111,10 @@ class MetamechGym(gym.Env):
         self.input_vectors = input_vectors
         self.output_nodes = output_nodes
         self.output_vectors = output_vectors
+        self.frozen_nodes = frozen_nodes
         self.first_edges_indices = edges_indices
         self.first_edges_thickness = edges_thickness
+
         # current_status
         self.current_obs = {}
 
@@ -203,7 +206,8 @@ class MetamechGym(gym.Env):
 
 
 env = MetamechGym(new_node_pos, new_input_nodes, new_input_vectors,
-                  new_output_nodes, new_output_vectors, new_edges_indices, new_edges_thickness)
+                  new_output_nodes, new_output_vectors, new_frozen_nodes,
+                  new_edges_indices, new_edges_thickness)
 
 # １エピソードのループ
 state = env.reset()
