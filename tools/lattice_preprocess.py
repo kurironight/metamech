@@ -21,7 +21,7 @@ def make_main_node_edge_info(origin_nodes_positions, origin_edges_indices, origi
     new_input_vectors = origin_input_vectors
     new_output_vectors = origin_output_vectors
 
-    return new_node_pos, new_input_nodes, new_input_vectors, new_output_nodes, new_output_vectors, new_frozen_nodes, new_edges_indices, new_edges_thickness
+    return new_node_pos, new_input_nodes.tolist(), new_input_vectors, new_output_nodes.tolist(), new_output_vectors, new_frozen_nodes.tolist(), new_edges_indices, new_edges_thickness
 
 
 def make_main_edges_indices(edges_indices, input_nodes, output_nodes, frozen_nodes):
