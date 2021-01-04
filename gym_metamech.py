@@ -4,7 +4,8 @@ from tools.graph import convert_edge_indices_to_adj, convert_adj_to_edge_indices
 from tools.lattice_preprocess import make_main_node_edge_info
 from metamech.lattice import Lattice
 from metamech.actuator import Actuator
-
+from metamech.viz import show_actuator
+import networkx as nx
 
 # 初期のノードの状態を抽出
 origin_nodes_positions = np.array([
@@ -94,6 +95,8 @@ new_node_pos, new_input_nodes, new_input_vectors, new_output_nodes, new_output_v
                                                                                                                                                                             origin_output_nodes, origin_output_vectors, origin_frozen_nodes)
 
 MAX_NODE = 20
+LINEAR_STIFFNESS = 10
+ANGULAR_STIFFNESS = 0.2
 
 
 class MetamechGym(gym.Env):
@@ -136,20 +139,13 @@ class MetamechGym(gym.Env):
             })
         })
 
-    def renew_current_obs(self, node_pos, edges_indices, edges_thickness):
-        self.current_obs['nodes'] = np.pad(
-            node_pos, ((0, self.max_node-node_pos.shape[0]), (0, 0)), constant_values=-1)
-        adj = convert_edge_indices_to_adj(
-            edges_indices, size=self.max_node)
-        self.current_obs['edges'] = {
-            'adj': adj,
-            'thickness': np.pad(
-                edges_thickness, (0, self.max_node*self.max_node-edges_thickness.shape[0]), constant_values=-1)}
-
     # 環境のリセット
+
     def reset(self):
-        self.renew_current_obs(
+        self._renew_current_obs(
             self.first_node_pos, self.first_edges_indices, self.first_edges_thickness)
+
+        efficiency = self._calculate_efficiency()
         return self.current_obs
 
     def _remove_padding_from_current_obs(self):
@@ -168,10 +164,18 @@ class MetamechGym(gym.Env):
         return vaild_nodes, valid_adj, vaild_edges_thickness
 
     # 環境の１ステップ実行
+
     def step(self, action):
 
         if action['end']:  # 終了条件を満たす場合
-            reward = 1
+            efficiency = self._calculate_efficiency()
+            if self._confirm_graph_is_connected():
+                reward = -1
+            elif efficiency < 0:
+                reward = 0
+            else:
+                reward = efficiency
+
             obs = self.current_obs
             return obs, reward, True, {}
 
@@ -196,9 +200,57 @@ class MetamechGym(gym.Env):
         edges_thickness = np.concatenate(
             [edges_thickness, action['edge_thickness']])
 
-        self.renew_current_obs(nodes_pos, edges_indices, edges_thickness)
+        self._renew_current_obs(nodes_pos, edges_indices, edges_thickness)
 
         return self.current_obs, 1, False, {}
+
+    def _confirm_graph_is_connected(self):
+        # グラフが全て接続しているか確認
+
+        nodes_pos, adj, edges_thickness = self._remove_padding_from_current_obs()
+        edges_indices = convert_adj_to_edge_indices(adj)
+
+        G = nx.Graph()
+        G.add_nodes_from(np.arange(len(nodes_pos)))
+        G.add_edges_from(edges_indices)
+
+        return nx.is_connected(G)
+
+    def _calculate_efficiency(self):
+        nodes_pos, adj, edges_thickness = self._remove_padding_from_current_obs()
+        edges_indices = convert_adj_to_edge_indices(adj)
+
+        lattice = Lattice(
+            nodes_positions=nodes_pos,
+            edges_indices=edges_indices,
+            edges_thickness=edges_thickness,
+            linear_stiffness=LINEAR_STIFFNESS,
+            angular_stiffness=ANGULAR_STIFFNESS
+        )
+
+        for edge in lattice._possible_edges:
+            lattice.flip_edge(edge)
+
+        actuator = Actuator(
+            lattice=lattice,
+            input_nodes=self.input_nodes,
+            input_vectors=self.input_vectors,
+            output_nodes=self.output_nodes,
+            output_vectors=self.output_vectors,
+            frozen_nodes=self.frozen_nodes
+        )
+
+        return actuator.efficiency
+
+    def _renew_current_obs(self, node_pos, edges_indices, edges_thickness):
+        self.current_obs['nodes'] = np.pad(
+            node_pos, ((0, self.max_node-node_pos.shape[0]), (0, 0)), constant_values=-1)
+        adj = convert_edge_indices_to_adj(
+            edges_indices, size=self.max_node)
+        self.current_obs['edges'] = {
+            'adj': adj,
+            'thickness': np.pad(
+                edges_thickness, (0, self.max_node*self.max_node-edges_thickness.shape[0]), constant_values=-1)}
 
     # 環境の描画
     # def render(self, mode='console', close=False):
