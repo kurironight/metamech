@@ -58,7 +58,6 @@ class MetamechGym(gym.Env):
         self._renew_current_obs(
             self.first_node_pos, self.first_edges_indices, self.first_edges_thickness)
 
-        efficiency = self._calculate_efficiency()
         return self.current_obs
 
     def random_action(self):
@@ -83,7 +82,7 @@ class MetamechGym(gym.Env):
 
         if action['end']:  # 終了条件を満たす場合
             # TODO 本来はこれは，外側の方で行うこと
-            reward = self._calculate_efficiency()
+            reward = 1
             obs = self.current_obs
             return obs, reward, True, {}
 
@@ -110,7 +109,7 @@ class MetamechGym(gym.Env):
 
         self._renew_current_obs(nodes_pos, edges_indices, edges_thickness)
 
-        reward = self._calculate_efficiency()
+        reward = 0
 
         return self.current_obs, reward, False, {}
 
@@ -147,7 +146,7 @@ class MetamechGym(gym.Env):
 
         return nodes_pos, edges_indices, edges_thickness
 
-    def _calculate_efficiency(self):
+    def calculate_efficiency(self):
         print("calculate_efficiency_start")
         nodes_pos, edges_indices, edges_thickness = self.extract_info_for_lattice()
 
