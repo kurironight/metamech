@@ -149,3 +149,5 @@ metamech/minimize.o
 compile*.sh
 metamech/input/*
 try.py
+*.png
+*.npy
