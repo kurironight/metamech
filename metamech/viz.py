@@ -190,6 +190,7 @@ def _show_actuator_displacement(
     input_color: str = "#DE4515",
     output_color: str = "#32a852",
     desired_output_color: str = "#185428",
+    save_path="image.png"
 ) -> None:
     # must act before showing
     actuator.act()
@@ -276,7 +277,9 @@ def _show_actuator_displacement(
         s=100
     )
     # show the figure
-    fig.show()
+    # fig.show()
+    fig.savefig(save_path)
+    plt.close()
 
 
 def _plot_lattice(
