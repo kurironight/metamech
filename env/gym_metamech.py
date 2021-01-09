@@ -81,6 +81,9 @@ class MetamechGym(gym.Env):
         return action
 
     def step(self, action):
+        # padding部分を排除した情報を抽出
+        nodes_pos, edges_indices, edges_thickness = self.extract_node_edge_info()
+        node_num = nodes_pos.shape[0]
 
         if action['end']:  # 終了条件を満たす場合
             # TODO 本来はこれは，外側の方で行うこと
@@ -88,11 +91,22 @@ class MetamechGym(gym.Env):
             obs = self.current_obs
             return obs, reward, True, self.info
 
-        # padding部分を排除した情報を抽出
-        nodes_pos, adj, edges_thickness = self._extract_non_padding_status_from_current_obs()
-        edges_indices = self.info['edges']['indices']
-        node_num = nodes_pos.shape[0]
+        # 既に存在するエッジを指定している場合，そのエッジを交換する
+        index = np.arange(edges_indices.shape[0])
+        index[np.isin(edges_indices[:, 0], action['which_node']) &
+              np.isin(edges_indices[:, 1], action['which_node'])]
+        if index.shape != (0,):
+            assert index.shape[0] > 1, 'there are two edge_indices which is identical'
+            # change thickness
+            edges_thickness[index] = action['edge_thickness']
+            # renew obs
+            self._renew_current_obs(nodes_pos, edges_indices, edges_thickness)
 
+            reward = 0
+            obs = self.current_obs
+            return obs, reward, True, self.info
+
+        # 通常ルート
         if action['which_node'][1] == node_num:  # 新規ノードを追加する場合
             nodes_pos = np.concatenate([nodes_pos, action['new_node']])
 
@@ -118,8 +132,7 @@ class MetamechGym(gym.Env):
     def confirm_graph_is_connected(self):
         # グラフが全て接続しているか確認
 
-        nodes_pos, adj, edges_thickness = self._extract_non_padding_status_from_current_obs()
-        edges_indices = convert_adj_to_edge_indices(adj)
+        nodes_pos, edges_indices, edges_thickness = self.extract_node_edge_info()
 
         G = nx.Graph()
         G.add_nodes_from(np.arange(len(nodes_pos)))
@@ -127,7 +140,7 @@ class MetamechGym(gym.Env):
 
         return nx.is_connected(G)
 
-        def extract_node_edge_info(self):
+    def extract_node_edge_info(self):
         nodes_pos, adj, edges_thickness = self._extract_non_padding_status_from_current_obs()
         edges_indices = self.info['edges']['indices']
         return nodes_pos, edges_indices, edges_thickness
