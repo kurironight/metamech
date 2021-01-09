@@ -53,6 +53,8 @@ class MetamechGym(gym.Env):
             })
         })
 
+        self.info = {}  # edges_indicesのthicknessに応じた順序を保持したものを用意する．
+
     # 環境のリセット
 
     def reset(self):
@@ -85,10 +87,11 @@ class MetamechGym(gym.Env):
             # TODO 本来はこれは，外側の方で行うこと
             reward = 1
             obs = self.current_obs
-            return obs, reward, True, {}
+            return obs, reward, True, self.info
 
         # padding部分を排除した情報を抽出
-        nodes_pos, edges_indices, edges_thickness = self.extract_info_for_lattice()
+        nodes_pos, adj, edges_thickness = self._extract_non_padding_status_from_current_obs()
+        edges_indices = self.info['edges']['indices']
         node_num = nodes_pos.shape[0]
 
         if action['which_node'][1] == node_num:  # 新規ノードを追加する場合
@@ -111,7 +114,7 @@ class MetamechGym(gym.Env):
 
         reward = 0
 
-        return self.current_obs, reward, False, {}
+        return self.current_obs, reward, False, self.info
 
     def confirm_graph_is_connected(self):
         # グラフが全て接続しているか確認
@@ -140,17 +143,12 @@ class MetamechGym(gym.Env):
 
         return vaild_nodes, valid_adj, vaild_edges_thickness
 
-    def extract_info_for_lattice(self):
-        nodes_pos, adj, edges_thickness = self._extract_non_padding_status_from_current_obs()
-        edges_indices = convert_adj_to_edge_indices(adj)
-
-        return nodes_pos, edges_indices, edges_thickness
-
     def extract_rho_for_fem(self):
-        nodes_pos, edges_indices, edges_thickness = self.extract_info_for_lattice()
+        nodes_pos, adj, edges_thickness = self._extract_non_padding_status_from_current_obs()
+        edges_indices = self.info['edges']['indices']
 
         edges = [[self.pixel*nodes_pos[edges_indice[0]], self.pixel*nodes_pos[edges_indice[1]],
-                  5*edge_thickness]
+                  edge_thickness]
                  for edges_indice, edge_thickness in zip(edges_indices, edges_thickness)]
 
         rho = make_bar_structure(self.pixel, self.pixel, edges)
@@ -190,6 +188,9 @@ class MetamechGym(gym.Env):
             'adj': adj,
             'thickness': np.pad(
                 edges_thickness, (0, self.max_node*self.max_node-edges_thickness.shape[0]), constant_values=-1)}
+        self.info['edges'] = {
+            'indices': edges_indices,
+        }
 
     # 環境の描画
     def render(self, save_path="image.png"):
