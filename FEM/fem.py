@@ -127,6 +127,47 @@ def FEM(rho, FixDOF, F):
     return U
 
 
+def FEM_displacement(rho, FixDOF, F, disp):
+    """材料密度分布がRHOの時に，固定条件FIXDOF及び荷重条件Fに伴ってFEMを行い，変位を求める．
+    節点番号は1~2 * (nx + 1) * (ny + 1)まで．
+    １，３，５など奇数はx方向を示す．
+
+
+    Args:
+        rho (np.array): 二次元の材料密度分布(ny*nx)
+        FixDOF (np.array): 2*(ny+1)*(nx+1):左上から下，右順に節点を表す．
+        F (np.array): 2*(ny+1)*(nx+1)：負の値はｙ軸方向，ｘ軸方向の力を示す．
+        disp (np.array): 2*(ny+1)*(nx+1)：負の値はｙ軸方向，ｘ軸方向の変位を示す．
+
+    Returns:
+        [np.array]: 2*(ny+1)*(nx+1)
+    """
+    K = make_K_mat(rho)
+    ny, nx = rho.shape
+    U = disp
+
+    disp_indices = np.where(disp != 0)
+    for disp_indice in disp_indices:
+        KU = K[:, disp_indice]*U[disp_indice]
+        F = F-KU.flatten()  # F-KUしている
+        F[disp_indice] = U[disp_indice]
+        K[:, disp_indice] = 0
+        K[disp_indice, :] = 0
+        K[disp_indice, disp_indice] = 1
+
+    FreeDOF = list(range(1, 2 * (nx + 1) * (ny + 1)+1))
+    for i in FixDOF:
+        FreeDOF.remove(i)
+    # indexを示す為
+    FreeDOF = np.array(FreeDOF) - 1
+    FixDOF = np.array(FixDOF) - 1
+    target_K = csr_matrix(K[np.ix_(FreeDOF, FreeDOF)])
+    U[FreeDOF] = spsolve(
+        target_K,   F[FreeDOF], use_umfpack=True)
+    U[FixDOF] = 0
+    return U
+
+
 def make_K_mat(rho):
     # 全体のK行列を作成
     ny, nx = rho.shape

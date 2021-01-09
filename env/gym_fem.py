@@ -4,13 +4,13 @@ from tools.graph import convert_edge_indices_to_adj, convert_adj_to_edge_indices
 from tools.lattice_preprocess import make_main_node_edge_info
 import networkx as nx
 from FEM.make_structure import make_bar_structure
-from FEM.fem import FEM
+from FEM.fem import FEM, FEM_displacement
 import matplotlib.pyplot as plt
 from .gym_metamech import MetamechGym
 
 MAX_NODE = 100
-PIXEL = 100
-MAX_EDGE_THICKNESS = 25
+PIXEL = 50
+MAX_EDGE_THICKNESS = 5
 
 
 class FEMGym(MetamechGym):
@@ -29,7 +29,7 @@ class FEMGym(MetamechGym):
         X_DOF = np.arange(2*(ny+1)-1, 2*(nx+1)*(ny+1), 2*(ny+1))
         self.FIXDOF = np.concatenate([X_DOF, Y_DOF])
         F = np.zeros(2 * (nx + 1) * (ny + 1), dtype=np.float64)
-        F[2*nx*(ny+1)+2] = -1
+        F[2*nx*(ny+1)+2-1] = -1
         self.F = F
 
     def extract_rho_for_fem(self):
@@ -45,13 +45,26 @@ class FEMGym(MetamechGym):
 
     def calculate_simulation(self):
         rho = self.extract_rho_for_fem()
-        U = FEM(rho, self.FIXDOF, self.F)
+        #U = FEM(rho, self.FIXDOF, self.F)
 
-        # print(U[0]) #目標部分の変位
+        #displacement = np.array([U[0], U[1]])
+        #output_vectors = np.array([1, 0])
+        #efficiency = np.dot(output_vectors, displacement)
+        #
+        #print("力：\n", efficiency)
+        disp = np.zeros(
+            (2 * (self.pixel + 1) * (self.pixel + 1)), dtype=np.float64)
+
+        disp[2*self.pixel*(self.pixel+1)+2-1] = -1
+        U = FEM_displacement(rho, self.FIXDOF, np.zeros(
+            (2 * (self.pixel + 1) * (self.pixel + 1)), dtype=np.float64), disp)
+
         # actuator.pyより引用
         displacement = np.array([U[0], U[1]])
         output_vectors = np.array([1, 0])
         efficiency = np.dot(output_vectors, displacement)
+
+        print("変位版：\n", efficiency)
 
         return efficiency
 
