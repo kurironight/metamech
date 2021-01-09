@@ -4,6 +4,7 @@ from tools.graph import convert_edge_indices_to_adj, convert_adj_to_edge_indices
 from tools.lattice_preprocess import make_main_node_edge_info
 import networkx as nx
 from FEM.make_structure import make_bar_structure
+import matplotlib.pyplot as plt
 
 MAX_NODE = 100
 LINEAR_STIFFNESS = 10
@@ -145,8 +146,7 @@ class MetamechGym(gym.Env):
 
         return nodes_pos, edges_indices, edges_thickness
 
-    def calculate_displacement(self):
-        print("calculate_displacement_start")
+    def extract_rho_for_fem(self):
         nodes_pos, edges_indices, edges_thickness = self.extract_info_for_lattice()
 
         edges = [[self.pixel*nodes_pos[edges_indice[0]], self.pixel*nodes_pos[edges_indice[1]],
@@ -154,6 +154,22 @@ class MetamechGym(gym.Env):
                  for edges_indice, edge_thickness in zip(edges_indices, edges_thickness)]
 
         rho = make_bar_structure(self.pixel, self.pixel, edges)
+
+        return rho
+
+    def calculate_displacement(self):
+        print("calculate_displacement_start")
+        rho = self.extract_rho_for_fem()
+
+        ny, nx = rho.shape
+        x = np.arange(0, nx+1)  # x軸の描画範囲の生成。
+        y = np.arange(0, ny+1)  # y軸の描画範囲の生成。
+        X, Y = np.meshgrid(x, y)
+        fig = plt.figure()
+        _ = plt.pcolormesh(X, Y, rho, cmap="binary")
+        plt.axis("off")
+        fig.savefig("image_.png")
+        plt.close()
 
         # np.save("input_nodes", self.input_nodes)
         # np.save("input_vectors", self.input_vectors)
@@ -177,26 +193,14 @@ class MetamechGym(gym.Env):
 
     # 環境の描画
     def render(self, save_path="image.png"):
-        nodes_pos, adj, edges_thickness = self._extract_non_padding_status_from_current_obs()
-        edges_indices = convert_adj_to_edge_indices(adj)
+        rho = self.extract_rho_for_fem()
 
-        lattice = Lattice(
-            nodes_positions=nodes_pos,
-            edges_indices=edges_indices,
-            edges_thickness=edges_thickness,
-            linear_stiffness=LINEAR_STIFFNESS,
-            angular_stiffness=ANGULAR_STIFFNESS
-        )
-
-        for edge in lattice._possible_edges:
-            lattice.flip_edge(edge)
-
-        actuator = Actuator(
-            lattice=lattice,
-            input_nodes=self.input_nodes,
-            input_vectors=self.input_vectors,
-            output_nodes=self.output_nodes,
-            output_vectors=self.output_vectors,
-            frozen_nodes=self.frozen_nodes
-        )
-        show_actuator(actuator, save_path=save_path)
+        ny, nx = rho.shape
+        x = np.arange(0, nx+1)  # x軸の描画範囲の生成。
+        y = np.arange(0, ny+1)  # y軸の描画範囲の生成。
+        X, Y = np.meshgrid(x, y)
+        fig = plt.figure()
+        _ = plt.pcolormesh(X, Y, rho, cmap="binary")
+        plt.axis("off")
+        fig.savefig(save_path)
+        plt.close()
