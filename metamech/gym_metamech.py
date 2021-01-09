@@ -87,7 +87,7 @@ class MetamechGym(gym.Env):
             return obs, reward, True, {}
 
         # padding部分を排除した情報を抽出
-        nodes_pos, edges_indices, edges_thickness = self._extract_non_padding_status_from_current_obs()
+        nodes_pos, edges_indices, edges_thickness = self.extract_info_for_lattice()
         node_num = nodes_pos.shape[0]
 
         if action['which_node'][1] == node_num:  # 新規ノードを追加する場合
