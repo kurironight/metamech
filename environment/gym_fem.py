@@ -2,14 +2,12 @@ import numpy as np
 import gym
 from tools.graph import convert_edge_indices_to_adj, convert_adj_to_edge_indices
 from tools.lattice_preprocess import make_main_node_edge_info
-from .lattice import Lattice
-from .actuator import Actuator
-from .viz import show_actuator
 import networkx as nx
+from FEM.make_structure import make_bar_structure
+import matplotlib.pyplot as plt
 
 MAX_NODE = 100
-LINEAR_STIFFNESS = 10
-ANGULAR_STIFFNESS = 0.2
+PIXEL = 100
 
 
 class MetamechGym(gym.Env):
@@ -21,6 +19,7 @@ class MetamechGym(gym.Env):
 
         # 初期条件の指定
         self.max_node = MAX_NODE  # ノードの最大数
+        self.pixel = PIXEL
 
         self.first_node_pos = node_pos
         self.input_nodes = input_nodes
@@ -51,6 +50,8 @@ class MetamechGym(gym.Env):
                 'thickness': gym.spaces.Box(low=-1, high=1.0, shape=(self.max_node*self.max_node, 1), dtype=np.float32)
             })
         })
+
+        self.info = {}  # edges_indicesのthicknessに応じた順序を保持したものを用意する．
 
     # 環境のリセット
 
@@ -84,10 +85,11 @@ class MetamechGym(gym.Env):
             # TODO 本来はこれは，外側の方で行うこと
             reward = 1
             obs = self.current_obs
-            return obs, reward, True, {}
+            return obs, reward, True, self.info
 
         # padding部分を排除した情報を抽出
-        nodes_pos, edges_indices, edges_thickness = self.extract_info_for_lattice()
+        nodes_pos, adj, edges_thickness = self._extract_non_padding_status_from_current_obs()
+        edges_indices = self.info['edges']['indices']
         node_num = nodes_pos.shape[0]
 
         if action['which_node'][1] == node_num:  # 新規ノードを追加する場合
@@ -110,7 +112,7 @@ class MetamechGym(gym.Env):
 
         reward = 0
 
-        return self.current_obs, reward, False, {}
+        return self.current_obs, reward, False, self.info
 
     def confirm_graph_is_connected(self):
         # グラフが全て接続しているか確認
@@ -139,45 +141,22 @@ class MetamechGym(gym.Env):
 
         return vaild_nodes, valid_adj, vaild_edges_thickness
 
-    def extract_info_for_lattice(self):
+    def extract_rho_for_fem(self):
         nodes_pos, adj, edges_thickness = self._extract_non_padding_status_from_current_obs()
-        edges_indices = convert_adj_to_edge_indices(adj)
+        edges_indices = self.info['edges']['indices']
 
-        return nodes_pos, edges_indices, edges_thickness
+        edges = [[self.pixel*nodes_pos[edges_indice[0]], self.pixel*nodes_pos[edges_indice[1]],
+                  edge_thickness]
+                 for edges_indice, edge_thickness in zip(edges_indices, edges_thickness)]
 
-    def calculate_efficiency(self):
-        print("calculate_efficiency_start")
-        nodes_pos, edges_indices, edges_thickness = self.extract_info_for_lattice()
+        rho = make_bar_structure(self.pixel, self.pixel, edges)
 
-        #np.save("input_nodes", self.input_nodes)
-        #np.save("input_vectors", self.input_vectors)
-        #np.save("output_nodes", self.output_nodes)
-        #np.save("output_vectors", self.output_vectors)
-        #np.save("frozen_nodes", self.frozen_nodes)
+        return rho
 
-        lattice = Lattice(
-            nodes_positions=nodes_pos,
-            edges_indices=edges_indices,
-            edges_thickness=edges_thickness,
-            linear_stiffness=LINEAR_STIFFNESS,
-            angular_stiffness=ANGULAR_STIFFNESS
-        )
+    def calculate_displacement(self):
+        rho = self.extract_rho_for_fem()
 
-        for edge in lattice._possible_edges:
-            lattice.flip_edge(edge)
-
-        actuator = Actuator(
-            lattice=lattice,
-            input_nodes=self.input_nodes,
-            input_vectors=self.input_vectors,
-            output_nodes=self.output_nodes,
-            output_vectors=self.output_vectors,
-            frozen_nodes=self.frozen_nodes
-        )
-
-        print("calculate_efficiency_end")
-
-        return actuator.efficiency
+        return 0
 
     def _renew_current_obs(self, node_pos, edges_indices, edges_thickness):
         self.current_obs['nodes'] = np.pad(
@@ -188,29 +167,20 @@ class MetamechGym(gym.Env):
             'adj': adj,
             'thickness': np.pad(
                 edges_thickness, (0, self.max_node*self.max_node-edges_thickness.shape[0]), constant_values=-1)}
+        self.info['edges'] = {
+            'indices': edges_indices,
+        }
 
     # 環境の描画
     def render(self, save_path="image.png"):
-        nodes_pos, adj, edges_thickness = self._extract_non_padding_status_from_current_obs()
-        edges_indices = convert_adj_to_edge_indices(adj)
+        rho = self.extract_rho_for_fem()
 
-        lattice = Lattice(
-            nodes_positions=nodes_pos,
-            edges_indices=edges_indices,
-            edges_thickness=edges_thickness,
-            linear_stiffness=LINEAR_STIFFNESS,
-            angular_stiffness=ANGULAR_STIFFNESS
-        )
-
-        for edge in lattice._possible_edges:
-            lattice.flip_edge(edge)
-
-        actuator = Actuator(
-            lattice=lattice,
-            input_nodes=self.input_nodes,
-            input_vectors=self.input_vectors,
-            output_nodes=self.output_nodes,
-            output_vectors=self.output_vectors,
-            frozen_nodes=self.frozen_nodes
-        )
-        show_actuator(actuator, save_path=save_path)
+        ny, nx = rho.shape
+        x = np.arange(0, nx+1)  # x軸の描画範囲の生成。
+        y = np.arange(0, ny+1)  # y軸の描画範囲の生成。
+        X, Y = np.meshgrid(x, y)
+        fig = plt.figure()
+        _ = plt.pcolormesh(X, Y, rho, cmap="binary")
+        plt.axis("off")
+        fig.savefig(save_path)
+        plt.close()
