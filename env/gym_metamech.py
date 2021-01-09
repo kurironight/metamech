@@ -127,22 +127,7 @@ class MetamechGym(gym.Env):
 
         return nx.is_connected(G)
 
-    def _extract_non_padding_status_from_current_obs(self):
-        """self.current_obsのうち，PADDINGを除いた部分を抽出
-        """
-        nodes_mask = self.current_obs['nodes'][:, 0] != -1  # 意味を成さない部分を除外
-        vaild_nodes = self.current_obs['nodes'][nodes_mask]
-
-        # 意味を成さない部分を除外
-        thickness_mask = self.current_obs['edges']['thickness'] != -1
-        vaild_edges_thickness = self.current_obs['edges']['thickness'][thickness_mask]
-
-        node_num = vaild_nodes.shape[0]
-        valid_adj = self.current_obs['edges']['adj'][:node_num, :node_num]
-
-        return vaild_nodes, valid_adj, vaild_edges_thickness
-
-    def extract_node_edge_info(self):
+        def extract_node_edge_info(self):
         nodes_pos, adj, edges_thickness = self._extract_non_padding_status_from_current_obs()
         edges_indices = self.info['edges']['indices']
         return nodes_pos, edges_indices, edges_thickness
@@ -172,19 +157,6 @@ class MetamechGym(gym.Env):
 
         return actuator.efficiency
 
-    def _renew_current_obs(self, node_pos, edges_indices, edges_thickness):
-        self.current_obs['nodes'] = np.pad(
-            node_pos, ((0, self.max_node-node_pos.shape[0]), (0, 0)), constant_values=-1)
-        adj = convert_edge_indices_to_adj(
-            edges_indices, size=self.max_node)
-        self.current_obs['edges'] = {
-            'adj': adj,
-            'thickness': np.pad(
-                edges_thickness, (0, self.max_node*self.max_node-edges_thickness.shape[0]), constant_values=-1)}
-        self.info['edges'] = {
-            'indices': edges_indices,
-        }
-
     # 環境の描画
     def render(self, save_path="image.png"):
         nodes_pos, edges_indices, edges_thickness = self.extract_node_edge_info()
@@ -209,3 +181,31 @@ class MetamechGym(gym.Env):
             frozen_nodes=self.frozen_nodes
         )
         show_actuator(actuator, save_path=save_path)
+
+    def _extract_non_padding_status_from_current_obs(self):
+        """self.current_obsのうち，PADDINGを除いた部分を抽出
+        """
+        nodes_mask = self.current_obs['nodes'][:, 0] != -1  # 意味を成さない部分を除外
+        vaild_nodes = self.current_obs['nodes'][nodes_mask]
+
+        # 意味を成さない部分を除外
+        thickness_mask = self.current_obs['edges']['thickness'] != -1
+        vaild_edges_thickness = self.current_obs['edges']['thickness'][thickness_mask]
+
+        node_num = vaild_nodes.shape[0]
+        valid_adj = self.current_obs['edges']['adj'][:node_num, :node_num]
+
+        return vaild_nodes, valid_adj, vaild_edges_thickness
+
+    def _renew_current_obs(self, node_pos, edges_indices, edges_thickness):
+        self.current_obs['nodes'] = np.pad(
+            node_pos, ((0, self.max_node-node_pos.shape[0]), (0, 0)), constant_values=-1)
+        adj = convert_edge_indices_to_adj(
+            edges_indices, size=self.max_node)
+        self.current_obs['edges'] = {
+            'adj': adj,
+            'thickness': np.pad(
+                edges_thickness, (0, self.max_node*self.max_node-edges_thickness.shape[0]), constant_values=-1)}
+        self.info['edges'] = {
+            'indices': edges_indices,
+        }
