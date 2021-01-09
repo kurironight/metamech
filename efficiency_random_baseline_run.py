@@ -1,7 +1,7 @@
 """metamechのefficiency計算を基にしたMetamechGymに関するrandom施策のコード例
     """
 import numpy as np
-from metamech.gym_metamech import MetamechGym
+from env.gym_metamech import MetamechGym
 from tools.lattice_preprocess import make_main_node_edge_info
 
 # 初期のノードの状態を抽出
@@ -106,7 +106,7 @@ for i in range(70):
 
     if env.confirm_graph_is_connected():
         reward = 0
-        efficiency = env.calculate_efficiency()
+        efficiency = env.calculate_simulation()
         if efficiency > 0:
             reward = efficiency
         else:

@@ -142,13 +142,13 @@ class MetamechGym(gym.Env):
 
         return vaild_nodes, valid_adj, vaild_edges_thickness
 
-    def extract_info_for_lattice(self):
+    def extract_node_edge_info(self):
         nodes_pos, adj, edges_thickness = self._extract_non_padding_status_from_current_obs()
         edges_indices = self.info['edges']['indices']
         return nodes_pos, edges_indices, edges_thickness
 
-    def calculate_efficiency(self):
-        nodes_pos, edges_indices, edges_thickness = self.extract_info_for_lattice()
+    def calculate_simulation(self):
+        nodes_pos, edges_indices, edges_thickness = self.extract_node_edge_info()
 
         lattice = Lattice(
             nodes_positions=nodes_pos,
@@ -187,7 +187,7 @@ class MetamechGym(gym.Env):
 
     # 環境の描画
     def render(self, save_path="image.png"):
-        nodes_pos, edges_indices, edges_thickness = self.extract_info_for_lattice()
+        nodes_pos, edges_indices, edges_thickness = self.extract_node_edge_info()
 
         lattice = Lattice(
             nodes_positions=nodes_pos,

@@ -1,8 +1,9 @@
 """metamechのefficiency計算を基にしたMetamechGymに関するrandom施策のコード例
     """
 import numpy as np
-from FEM.gym_fem import MetamechGym
+from env.gym_fem import MetamechGym
 from tools.lattice_preprocess import make_main_node_edge_info
+
 
 # 初期のノードの状態を抽出
 origin_nodes_positions = np.array([
@@ -100,13 +101,15 @@ env = MetamechGym(new_node_pos, new_input_nodes, new_input_vectors,
 # １エピソードのループ
 state = env.reset()
 
-efficiency = env.calculate_displacement()
-
 for i in range(20):
     # ランダム行動の取得
     action = env.random_action()
+    print(action['which_node'])
     # １ステップの実行
     state, reward, done, info = env.step(action)
+    if not action['end']:
+
+        print("status:\n", info['edges']['indices'])
 
     # if env.confirm_graph_is_connected():
     #    reward = 0
