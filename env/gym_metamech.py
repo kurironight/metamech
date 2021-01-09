@@ -93,10 +93,10 @@ class MetamechGym(gym.Env):
 
         # 既に存在するエッジを指定している場合，そのエッジを交換する
         index = np.arange(edges_indices.shape[0])
-        index[np.isin(edges_indices[:, 0], action['which_node']) &
-              np.isin(edges_indices[:, 1], action['which_node'])]
+        index = index[np.isin(edges_indices[:, 0], action['which_node']) &
+                      np.isin(edges_indices[:, 1], action['which_node'])]
         if index.shape != (0,):
-            assert index.shape[0] > 1, 'there are two edge_indices which is identical'
+            assert index.shape[0] == 1, 'there are two edge_indices which is identical'
             # change thickness
             edges_thickness[index] = action['edge_thickness']
             # renew obs

@@ -92,6 +92,19 @@ def calc_G(rho, cut_thresh=cut_thresh):
 
 
 def FEM(rho, FixDOF, F):
+    """材料密度分布がRHOの時に，固定条件FIXDOF及び荷重条件Fに伴ってFEMを行い，変位を求める．
+    節点番号は1~2 * (nx + 1) * (ny + 1)まで．
+    １，３，５など奇数はx方向を示す．
+
+
+    Args:
+        rho (np.array): 二次元の材料密度分布(ny*nx)
+        FixDOF (np.array): 2*(ny+1)*(nx+1):左上から下，右順に節点を表す．
+        F (np.array): 2*(ny+1)*(nx+1)：負の値はｙ軸方向，ｘ軸方向の力を示す．
+
+    Returns:
+        [np.array]: 2*(ny+1)*(nx+1)
+    """
     K = make_K_mat(rho)
     ny, nx = rho.shape
     U = np.zeros((2 * (nx + 1) * (ny + 1)), dtype=np.float64)
@@ -100,7 +113,7 @@ def FEM(rho, FixDOF, F):
     # F[9-1]=10
 
     # 節点番号は1~2 * (nx + 1) * (ny + 1)まで
-    FixDOF = list(range(1, 2 * (ny + 1)+1))
+    # FixDOF = list(range(1, 2 * (ny + 1)+1))
     FreeDOF = list(range(1, 2 * (nx + 1) * (ny + 1)+1))
     for i in FixDOF:
         FreeDOF.remove(i)
