@@ -99,8 +99,8 @@ def FEM(rho, FixDOF, F):
 
     Args:
         rho (np.array): 二次元の材料密度分布(ny*nx)
-        FixDOF (np.array): 2*(ny+1)*(nx+1):左上から下，右順に節点を表す．
-        F (np.array): 2*(ny+1)*(nx+1)：負の値はｙ軸方向，ｘ軸方向の力を示す．
+        FixDOF (np.array): 2*(ny+1)*(nx+1):左下から上，右順に節点を表す．
+        F (np.array): 2*(ny+1)*(nx+1)：正の値はｙ軸方向，ｘ軸方向の力を示す．
 
     Returns:
         [np.array]: 2*(ny+1)*(nx+1)
@@ -135,16 +135,16 @@ def FEM_displacement(rho, FixDOF, F, disp):
 
     Args:
         rho (np.array): 二次元の材料密度分布(ny*nx)
-        FixDOF (np.array): 2*(ny+1)*(nx+1):左上から下，右順に節点を表す．
-        F (np.array): 2*(ny+1)*(nx+1)：負の値はｙ軸方向，ｘ軸方向の力を示す．
-        disp (np.array): 2*(ny+1)*(nx+1)：負の値はｙ軸方向，ｘ軸方向の変位を示す．
+        FixDOF (np.array): 2*(ny+1)*(nx+1):左下から上，右順に節点を表す．
+        F (np.array): 2*(ny+1)*(nx+1)：正の値はｙ軸方向，ｘ軸方向の力を示す．
+        disp (np.array): 2*(ny+1)*(nx+1)：正の値はｙ軸方向，ｘ軸方向の変位を示す．
 
     Returns:
         [np.array]: 2*(ny+1)*(nx+1)
     """
     K = make_K_mat(rho)
     ny, nx = rho.shape
-    U = disp
+    U = disp.copy()
 
     disp_indices = np.where(disp != 0)
     for disp_indice in disp_indices:
