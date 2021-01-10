@@ -1,7 +1,6 @@
 import numpy as np
 import gym
-from tools.graph import convert_edge_indices_to_adj, convert_adj_to_edge_indices
-from tools.lattice_preprocess import make_main_node_edge_info
+from tools.graph import convert_edge_indices_to_adj
 from metamech.lattice import Lattice
 from metamech.actuator import Actuator
 from metamech.viz import show_actuator
@@ -16,7 +15,8 @@ class MetamechGym(gym.Env):
     # 定数定義
 
     # 初期化
-    def __init__(self, node_pos, input_nodes, input_vectors, output_nodes, output_vectors, frozen_nodes, edges_indices, edges_thickness):
+    def __init__(self, node_pos, input_nodes, input_vectors, output_nodes,
+                 output_vectors, frozen_nodes, edges_indices, edges_thickness):
         super(MetamechGym, self).__init__()
 
         # 初期条件の指定
@@ -36,9 +36,11 @@ class MetamechGym(gym.Env):
 
         # 行動空間と状態空間の定義
         self.action_space = gym.spaces.Dict({
-            'new_node':  gym.spaces.Box(low=0, high=1.0, shape=(1, 2), dtype=np.float32),
+            'new_node':  gym.spaces.Box(low=0, high=1.0, shape=(1, 2),
+                                        dtype=np.float32),
             'edge_thickness': gym.spaces.Box(low=np.array([-1]), high=np.array([1.0]), dtype=np.float32),
-            'which_node': gym.spaces.MultiDiscrete([self.max_node-1, self.max_node]),
+            'which_node': gym.spaces.MultiDiscrete([self.max_node-1,
+                                                    self.max_node]),
             'end': gym.spaces.Discrete(2),
         })
 
@@ -48,7 +50,8 @@ class MetamechGym(gym.Env):
             'edges': gym.spaces.Dict({
                 'adj': gym.spaces.MultiBinary([self.max_node, self.max_node]),
                 # -1のところは，意味の無いエッジの情報
-                'thickness': gym.spaces.Box(low=-1, high=1.0, shape=(self.max_node*self.max_node, 1), dtype=np.float32)
+                'thickness': gym.spaces.Box(low=-1, high=1.0,
+                                            shape=(self.max_node*self.max_node, 1), dtype=np.float32)
             })
         })
 

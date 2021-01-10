@@ -1,8 +1,4 @@
 import numpy as np
-import gym
-from tools.graph import convert_edge_indices_to_adj, convert_adj_to_edge_indices
-from tools.lattice_preprocess import make_main_node_edge_info
-import networkx as nx
 from FEM.make_structure import make_bar_structure
 from FEM.fem import FEM, FEM_displacement
 import matplotlib.pyplot as plt
