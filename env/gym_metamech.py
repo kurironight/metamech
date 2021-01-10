@@ -22,14 +22,14 @@ class MetamechGym(gym.Env):
         # 初期条件の指定
         self.max_node = MAX_NODE  # ノードの最大数
 
-        self.first_node_pos = node_pos
-        self.input_nodes = input_nodes
-        self.input_vectors = input_vectors
-        self.output_nodes = output_nodes
-        self.output_vectors = output_vectors
-        self.frozen_nodes = frozen_nodes
-        self.first_edges_indices = edges_indices
-        self.first_edges_thickness = edges_thickness
+        self.first_node_pos = node_pos.copy()
+        self.input_nodes = input_nodes.copy()
+        self.input_vectors = input_vectors.copy()
+        self.output_nodes = output_nodes.copy()
+        self.output_vectors = output_vectors.copy()
+        self.frozen_nodes = frozen_nodes.copy()
+        self.first_edges_indices = edges_indices.copy()
+        self.first_edges_thickness = edges_thickness.copy()
 
         # current_status
         self.current_obs = {}
