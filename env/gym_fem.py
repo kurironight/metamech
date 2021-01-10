@@ -7,6 +7,7 @@ from FEM.make_structure import make_bar_structure
 from FEM.fem import FEM, FEM_displacement
 import matplotlib.pyplot as plt
 from .gym_metamech import MetamechGym
+import cv2
 
 MAX_NODE = 100
 PIXEL = 50
@@ -23,14 +24,27 @@ class FEMGym(MetamechGym):
 
         self.pixel = PIXEL
         self.max_edge_thickness = MAX_EDGE_THICKNESS
+
+        # condition for calculation
         ny = self.pixel
         nx = self.pixel
         Y_DOF = np.arange(2*(ny+1), 2*(nx+1)*(ny+1)+1, 2*(ny+1))
         X_DOF = np.arange(2*(ny+1)-1, 2*(nx+1)*(ny+1), 2*(ny+1))
         self.FIXDOF = np.concatenate([X_DOF, Y_DOF])
+        self.displace_DOF = 2*nx*(ny+1)+2  # 強制変位を起こす場所
+
         F = np.zeros(2 * (nx + 1) * (ny + 1), dtype=np.float64)
-        F[2*nx*(ny+1)+2-1] = -1
+        F[self.displace_DOF-1] = -1
         self.F = F
+
+        disp = np.zeros((2 * (nx + 1) * (ny + 1)), dtype=np.float64)
+        disp[self.displace_DOF-1] = -1
+        self.disp = disp
+
+        # 構造が繋がっているかを確認する時，確認するメッシュ位置のindex
+        self.check_output_mesh_index = (0, 0)
+        self.check_input_mesh_index = (0, nx-1)
+        self.check_freeze_mesh_index = (ny-1, int(nx/2))
 
     def extract_rho_for_fem(self):
         nodes_pos, edges_indices, edges_thickness = self.extract_node_edge_info()
@@ -52,12 +66,8 @@ class FEMGym(MetamechGym):
         #efficiency = np.dot(output_vectors, displacement)
         #
         #print("力：\n", efficiency)
-        disp = np.zeros(
-            (2 * (self.pixel + 1) * (self.pixel + 1)), dtype=np.float64)
-
-        disp[2*self.pixel*(self.pixel+1)+2-1] = -1
         U = FEM_displacement(rho, self.FIXDOF, np.zeros(
-            (2 * (self.pixel + 1) * (self.pixel + 1)), dtype=np.float64), disp)
+            (2 * (self.pixel + 1) * (self.pixel + 1)), dtype=np.float64), self.disp)
 
         # actuator.pyより引用
         displacement = np.array([U[0], U[1]])
@@ -67,6 +77,20 @@ class FEMGym(MetamechGym):
         print("変位版：\n", efficiency)
 
         return efficiency
+
+    def confirm_graph_is_connected(self):
+        # グラフが全て接続しているか確認
+
+        rho = self.extract_rho_for_fem().astype(np.uint8)
+
+        _, markers = cv2.connectedComponents(rho)
+        if markers[self.check_output_mesh_index] == markers[self.check_input_mesh_index] & \
+                markers[self.check_output_mesh_index] == markers[self.check_freeze_mesh_index]:
+
+            self.render("image_connected.png")
+            return True
+        else:
+            return False
 
     # 環境の描画
     def render(self, save_path="image.png"):
