@@ -88,6 +88,9 @@ class MetamechGym(gym.Env):
         nodes_pos, edges_indices, edges_thickness = self.extract_node_edge_info()
         node_num = nodes_pos.shape[0]
 
+        assert action['which_node'][1] <= node_num and action['which_node'][
+            0] < node_num, 'action selects node which is higher than existing {} node or new node'.format(node_num)
+
         if action['end']:  # 終了条件を満たす場合
             # TODO 本来はこれは，外側の方で行うこと
             reward = 1
@@ -123,13 +126,6 @@ class MetamechGym(gym.Env):
         # 通常ルート
         if action['which_node'][1] == node_num:  # 新規ノードを追加する場合
             nodes_pos = np.concatenate([nodes_pos, action['new_node']])
-
-        # TODO ここは本当はassert
-        if action['which_node'][1] > node_num:
-            print("actionで選ばれたノードが大きい")
-            action['which_node'][1] = node_num
-        if action['which_node'][0] > node_num:
-            action['which_node'][0] = node_num-1
 
         edges_indices = np.concatenate([edges_indices, np.array(
             [[action['which_node'][0], action['which_node'][1]]])])
