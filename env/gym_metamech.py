@@ -23,11 +23,11 @@ class MetamechGym(gym.Env):
         self.max_node = MAX_NODE  # ノードの最大数
 
         self.first_node_pos = node_pos.copy()
-        self.input_nodes = input_nodes.copy()
-        self.input_vectors = input_vectors.copy()
-        self.output_nodes = output_nodes.copy()
-        self.output_vectors = output_vectors.copy()
-        self.frozen_nodes = frozen_nodes.copy()
+        self.input_nodes = input_nodes
+        self.input_vectors = input_vectors
+        self.output_nodes = output_nodes
+        self.output_vectors = output_vectors
+        self.frozen_nodes = frozen_nodes
         self.first_edges_indices = edges_indices.copy()
         self.first_edges_thickness = edges_thickness.copy()
 
@@ -92,22 +92,33 @@ class MetamechGym(gym.Env):
             # TODO 本来はこれは，外側の方で行うこと
             reward = 1
             obs = self.current_obs
+            self.info['status'] = 0
             return obs, reward, True, self.info
 
-        # 既に存在するエッジを指定している場合，そのエッジを交換する
+        # 既に存在するエッジを指定している場合
         index = np.arange(edges_indices.shape[0])
         index = index[np.isin(edges_indices[:, 0], action['which_node']) &
                       np.isin(edges_indices[:, 1], action['which_node'])]
         if index.shape != (0,):
             assert index.shape[0] == 1, 'there are two edge_indices which is identical'
-            # change thickness
-            edges_thickness[index] = action['edge_thickness']
-            # renew obs
-            self._renew_current_obs(nodes_pos, edges_indices, edges_thickness)
+            # もし，条件ノード間のエッジを選択した場合，何もしない
+            condition_node_num = self.first_node_pos.shape[0]
+            ref_edge_indice = edges_indices[index][0]
 
-            reward = 0
-            obs = self.current_obs
-            return obs, reward, True, self.info
+            if np.isin([ref_edge_indice[0]], np.arange(condition_node_num))[0] & np.isin([ref_edge_indice[1]], np.arange(condition_node_num))[0]:
+                self.info['status'] = 1
+                return self.current_obs, 0, False, self.info
+            else:
+                # 条件ノード間のエッジ以外を選択した場合，そのエッジの太さを交換する
+                # change thickness
+                edges_thickness[index] = action['edge_thickness']
+                # renew obs
+                self._renew_current_obs(
+                    nodes_pos, edges_indices, edges_thickness)
+                reward = 0
+                obs = self.current_obs
+                self.info['status'] = 2
+            return obs, reward, False, self.info
 
         # 通常ルート
         if action['which_node'][1] == node_num:  # 新規ノードを追加する場合
@@ -129,6 +140,7 @@ class MetamechGym(gym.Env):
         self._renew_current_obs(nodes_pos, edges_indices, edges_thickness)
 
         reward = 0
+        self.info['status'] = 3
 
         return self.current_obs, reward, False, self.info
 
