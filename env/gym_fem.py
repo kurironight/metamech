@@ -28,10 +28,10 @@ class FEMGym(MetamechGym):
         # condition for calculation
         ny = self.pixel
         nx = self.pixel
-        Y_DOF = np.arange(2*(ny+1), 2*(nx+1)*(ny+1)+1, 2*(ny+1))
-        X_DOF = np.arange(2*(ny+1)-1, 2*(nx+1)*(ny+1), 2*(ny+1))
+        Y_DOF = np.linspace(2, 2*(nx)*(ny+1)+2, num=nx+1, dtype=np.int32)
+        X_DOF = np.linspace(1, 2*(nx)*(ny+1)+1, num=nx+1, dtype=np.int32)
         self.FIXDOF = np.concatenate([X_DOF, Y_DOF])
-        self.displace_DOF = 2*nx*(ny+1)+2  # 強制変位を起こす場所
+        self.displace_DOF = 2*(nx+1)*(ny+1)  # 強制変位を起こす場所
         """
         力を付加する場合の条件
         F = np.zeros(2 * (nx + 1) * (ny + 1), dtype=np.float64)
@@ -39,14 +39,21 @@ class FEMGym(MetamechGym):
         self.F = F
         """
 
-        disp = np.zeros((2 * (nx + 1) * (ny + 1)), dtype=np.float64)
-        disp[self.displace_DOF-1] = -1
-        self.disp = disp
+        displacement_condition = np.zeros(
+            (2 * (nx + 1) * (ny + 1)), dtype=np.float64)
+        displacement_condition[self.displace_DOF-1] = -1
+        self.displacement_condition = displacement_condition
 
         # 構造が繋がっているかを確認する時，確認するメッシュ位置のindex
         self.check_output_mesh_index = (ny-1, 0)
         self.check_input_mesh_index = (ny-1, nx-1)
         self.check_freeze_mesh_index = (0, int(nx/2))
+
+        # efficiencyを計算するとき，節点変位を確認する出力部の節点のDOF
+        self.check_x_output_node_DOF = 2*ny-1
+        self.check_y_output_node_DOF = 2*ny
+        # efficiencyを計算するとき，出力部の目標ベクトル
+        self.output_vector = np.array([-1, 0])
 
     def extract_rho_for_fem(self):
         nodes_pos, edges_indices, edges_thickness = self.extract_node_edge_info()
@@ -64,19 +71,19 @@ class FEMGym(MetamechGym):
         """
         力を付加する場合の計算方法
         U = FEM(rho, self.FIXDOF, self.F)
-        displacement = np.array([U[0], U[1]])
-        output_vectors = np.array([1, 0])
-        efficiency = np.dot(output_vectors, displacement)
+        displacement = np.array(
+            [U[self.check_x_output_node_DOF-1], U[self.check_y_output_node_DOF-1]])
+        efficiency = np.dot(self.output_vector, displacement)
         
         print("力：\n", efficiency)
         """
         U = FEM_displacement(rho, self.FIXDOF, np.zeros(
-            (2 * (self.pixel + 1) * (self.pixel + 1)), dtype=np.float64), self.disp)
+            (2 * (self.pixel + 1) * (self.pixel + 1)), dtype=np.float64), self.displacement_condition)
 
         # actuator.pyより引用
-        displacement = np.array([U[0], U[1]])
-        output_vectors = np.array([1, 0])
-        efficiency = np.dot(output_vectors, displacement)
+        displacement = np.array(
+            [U[self.check_x_output_node_DOF-1], U[self.check_y_output_node_DOF-1]])
+        efficiency = np.dot(self.output_vector, displacement)
 
         return efficiency
 
