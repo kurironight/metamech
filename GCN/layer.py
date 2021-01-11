@@ -27,7 +27,9 @@ class NodeCensNet(Module):
     def forward(self, node, edge, node_adj, D, T):
         # T: エッジとノードの連結行列を示すバイナリ行列
         # Av~を求める（この部分はdataloaderの前でもできる)
+        # TODO Dがいらない疑惑
         D = torch.sqrt(D)  # DはN*N
+        D[[D != 0]] = torch.pow(D[D != 0], -1)
         node_adj += torch.eye(node_adj.size(2)).double()  # 単位行列
         A_tilde = torch.bmm(D, node_adj)
         A_tilde = torch.bmm(node_adj, D)
@@ -66,6 +68,7 @@ class EdgeCensNet(Module):
         # T: エッジとノードの連結行列を示すバイナリ行列
         # Ae~を求める
         D = torch.sqrt(D)  # DはN*N
+        D[[D != 0]] = torch.pow(D[D != 0], -1)
         edge_adj += torch.eye(edge_adj.size(2)).double()  # 単位行列
         A_tilde = torch.bmm(D, edge_adj)
         A_tilde = torch.bmm(edge_adj, D)
@@ -100,6 +103,13 @@ class CensNet(Module):
         self.lrelu2 = torch.nn.LeakyReLU()
 
     def forward(self, node, edge, node_adj, edge_adj, D_v, D_e, T):
+        # print("node:", node.shape)
+        # print("edge:", edge.shape)
+        # print("node_adj:", node_adj.shape)
+        # print("edge_adj:", edge_adj.shape)
+        # print("D_v:", D_v.shape)
+        # print("D_e:", D_e.shape)
+        # print("T:", T.shape)
         node = self.nodenet(node, edge, node_adj, D_v, T)
         node = self.lrelu1(node)
         edge = self.edgenet(node, edge, edge_adj, D_e, T)
