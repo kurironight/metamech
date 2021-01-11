@@ -1,7 +1,7 @@
 """metamechのefficiency計算を基にしたMetamechGymに関するrandom施策のコード例
     """
 import numpy as np
-from env.gym_fem import MetamechGym
+from env.gym_fem import FEMGym
 from tools.lattice_preprocess import make_main_node_edge_info
 
 
@@ -72,6 +72,8 @@ origin_edges_indices = np.array([
     [82, 83], [82, 84], [83, 84],
 ])
 
+# origin_edges_indices = np.concatenate(
+#    [origin_edges_indices, [[81, 68], [68, 9]]])
 origin_input_nodes = [81, 82, 83, 84]
 origin_input_vectors = np.array([
     [0., -0.1],
@@ -93,44 +95,25 @@ origin_frozen_nodes = [1, 3, 5, 7, 9, 11, 13, 15]
 # gymに入力する要素を抽出
 new_node_pos, new_input_nodes, new_input_vectors, new_output_nodes, new_output_vectors, new_frozen_nodes, new_edges_indices, new_edges_thickness = make_main_node_edge_info(origin_nodes_positions, origin_edges_indices, origin_input_nodes, origin_input_vectors,
                                                                                                                                                                             origin_output_nodes, origin_output_vectors, origin_frozen_nodes)
-
-env = MetamechGym(new_node_pos, new_input_nodes, new_input_vectors,
-                  new_output_nodes, new_output_vectors, new_frozen_nodes,
-                  new_edges_indices, new_edges_thickness)
+env = FEMGym(new_node_pos,
+             new_edges_indices, new_edges_thickness)
 
 # １エピソードのループ
 state = env.reset()
+env.confirm_graph_is_connected()
+env.render("fem_images/image_first.png")
 
-for i in range(20):
+for i in range(100):
     # ランダム行動の取得
     action = env.random_action()
-    print(action['which_node'])
     # １ステップの実行
     state, reward, done, info = env.step(action)
-    if not action['end']:
-
-        print("status:\n", info['edges']['indices'])
-
-    # if env.confirm_graph_is_connected():
-    #    reward = 0
-    #    efficiency = env.calculate_displacement()
-    #    if efficiency > 0:
-    #        reward = efficiency
-    #    else:
-    #        reward = 0
-    # else:
-    #    reward = -1
-
+    if env.confirm_graph_is_connected():
+        reward = env.calculate_simulation()
+        # env.render("fem_images/graph_connected{}.png".format(i))
     print('{}steps  reward:{}'.format(i, reward))
 
-    # if env.confirm_graph_is_connected():
-    #    nodes_pos, edges_indices, edges_thickness = env.extract_info_for_lattice()
-    #    #np.save('check_np/nodes_pos{}.npy'.format(i), nodes_pos)
-    #    #np.save('check_np/edges_indices{}.npy'.format(i), edges_indices)
-    #    #np.save('check_np/edges_thickness{}.npy'.format(i), edges_thickness)
-    #    # env.render("no_change_stiffness/image{}.png".format(i))
-
-    # エピソード完了
-    # if done:
-    #    print('done')
-    #    break
+# エピソード完了
+# if done:
+#    print('done')
+#    break
