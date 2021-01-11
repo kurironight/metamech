@@ -40,3 +40,66 @@ def convert_adj_to_edge_indices(adj):
     edge_indices = index[mask]
 
     return edge_indices
+
+
+def make_T_matrix(edges_indices):
+    """T行列を作成する関数
+
+    Args:
+        edges_indices (np.array): edge_num*2
+
+    Returns:
+        T(np.array): node_num*edge_num
+    """
+    node_num = edges_indices.max()+1
+    edge_num = edges_indices.shape[0]
+    T = np.zeros((edge_num, node_num), dtype=np.int32)
+    for i, edge_indice in enumerate(edges_indices):
+        T[i][edge_indice] = 1
+    T = T.T
+    return T
+
+
+def make_edge_adj(edges_indices, T):
+    """エッジの隣接行列を作成する．
+
+    Args:
+        edges_indices (np.array): edge_num*2
+        T (np.array): node_num*edge_num
+
+    Returns:
+        edge_adj (np.array): edge_num*edge_num
+    """
+    edge_num = edges_indices.shape[0]
+    edge_adj = np.zeros((edge_num, edge_num), dtype=np.int32)
+    for i, edge_indice in enumerate(edges_indices):
+        # i番目のエッジがどのノードと繋がっているか抽出
+        node1 = edge_indice[0]
+        node2 = edge_indice[1]
+        # そのノードがどのエッジと繋がっているか抽出
+        connected_edges1 = np.where(T[node1])
+        connected_edges2 = np.where(T[node2])
+        # 重複を除く
+        connect_edges = np.unique(np.concatenate(
+            [connected_edges1, connected_edges2], axis=1))
+
+        edge_adj[i][connect_edges] = 1
+
+    # 最後に対角成分を0にする
+    np.fill_diagonal(edge_adj, 0)
+
+    return edge_adj
+
+
+def make_D_matrix(adj):
+    """隣接行列adj
+    I+adjの対角次数行列Dを作成する関数
+
+    Args:
+        adj (np.array): n*n
+
+    Returns:
+        D (np.array): n*n
+    """
+    D = np.diag(np.sum(adj, axis=0)+1)  # +1は単位行列Iを考慮したもの
+    return D
