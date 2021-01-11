@@ -85,7 +85,7 @@ class MetamechGym(gym.Env):
 
     def step(self, action):
         # padding部分を排除した情報を抽出
-        nodes_pos, edges_indices, edges_thickness = self.extract_node_edge_info()
+        nodes_pos, edges_indices, edges_thickness, _ = self.extract_node_edge_info()
         node_num = nodes_pos.shape[0]
 
         assert action['which_node'][1] <= node_num and action['which_node'][
@@ -143,7 +143,7 @@ class MetamechGym(gym.Env):
     def confirm_graph_is_connected(self):
         # グラフが全て接続しているか確認
 
-        nodes_pos, edges_indices, edges_thickness = self.extract_node_edge_info()
+        nodes_pos, edges_indices, edges_thickness, _ = self.extract_node_edge_info()
 
         G = nx.Graph()
         G.add_nodes_from(np.arange(len(nodes_pos)))
@@ -154,10 +154,10 @@ class MetamechGym(gym.Env):
     def extract_node_edge_info(self):
         nodes_pos, adj, edges_thickness = self._extract_non_padding_status_from_current_obs()
         edges_indices = self.info['edges']['indices']
-        return nodes_pos, edges_indices, edges_thickness
+        return nodes_pos, edges_indices, edges_thickness, adj
 
     def calculate_simulation(self):
-        nodes_pos, edges_indices, edges_thickness = self.extract_node_edge_info()
+        nodes_pos, edges_indices, edges_thickness, _ = self.extract_node_edge_info()
 
         lattice = Lattice(
             nodes_positions=nodes_pos,
@@ -183,7 +183,7 @@ class MetamechGym(gym.Env):
 
     # 環境の描画
     def render(self, save_path="image.png"):
-        nodes_pos, edges_indices, edges_thickness = self.extract_node_edge_info()
+        nodes_pos, edges_indices, edges_thickness, _ = self.extract_node_edge_info()
 
         lattice = Lattice(
             nodes_positions=nodes_pos,

@@ -52,7 +52,7 @@ class FEMGym(MetamechGym):
         self.output_vector = np.array([-1, 0])
 
     def extract_rho_for_fem(self):
-        nodes_pos, edges_indices, edges_thickness = self.extract_node_edge_info()
+        nodes_pos, edges_indices, edges_thickness, _ = self.extract_node_edge_info()
 
         edges = [[self.pixel*nodes_pos[edges_indice[0]], self.pixel*nodes_pos[edges_indice[1]],
                   self.max_edge_thickness*edge_thickness]
