@@ -4,7 +4,6 @@ import torch.nn.functional as F
 
 
 class GCN_fund_model(torch.nn.Module):
-
     def __init__(self, node_in_features, edge_in_features, node_out_features,
                  edge_out_features):
         super(GCN_fund_model, self).__init__()
@@ -36,7 +35,7 @@ class X_Y_model(torch.nn.Module):
     def __init__(self, node_in_features, emb_size):
         super(X_Y_model, self).__init__()
         self.layer1 = torch.nn.Linear(node_in_features, emb_size)
-        self.layer2 = torch.nn.Linear(emb_size, 2)
+        self.layer2 = torch.nn.Linear(emb_size, 4)
 
         # action & reward buffer
         self.saved_actions = []
@@ -45,7 +44,7 @@ class X_Y_model(torch.nn.Module):
     def forward(self, emb_graph):
         x = F.relu(self.layer1(emb_graph))  # 1*node_num*emb_size
         x = torch.mean(x, dim=1)  # 1*emb_size
-        x = torch.sigmoid(self.layer2(x))  # 1*2
+        x = torch.sigmoid(self.layer2(x))  # 1*4
 
         return x
 
@@ -109,7 +108,7 @@ class Edge_thickness_model(torch.nn.Module):
     def __init__(self, node_in_features, emb_size):
         super(Edge_thickness_model, self).__init__()
         self.layer1 = torch.nn.Linear(node_in_features, emb_size)
-        self.layer2 = torch.nn.Linear(emb_size, 1)
+        self.layer2 = torch.nn.Linear(emb_size, 2)
 
         # action & reward buffer
         self.saved_actions = []
@@ -118,6 +117,6 @@ class Edge_thickness_model(torch.nn.Module):
     def forward(self, emb_graph):
         x = F.relu(self.layer1(emb_graph))  # 1*node_num*emb_size
         x = torch.mean(x, dim=1)  # 1*emb_size
-        x = torch.sigmoid(self.layer2(x))  # 1*1
+        x = torch.sigmoid(self.layer2(x))  # 1*2
 
         return x
