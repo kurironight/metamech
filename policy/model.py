@@ -14,8 +14,6 @@ class GCN_fund_model(torch.nn.Module):
         self.predict_v1 = torch.nn.Linear(node_out_features, node_out_features)
         self.predict_v2 = torch.nn.Linear(node_out_features, 1)
 
-        # action & reward buffer
-        self.saved_actions = []
         self.rewards = []
 
     def forward(self, node, edge, node_adj, edge_adj, D_v, D_e, T):
