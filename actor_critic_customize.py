@@ -186,18 +186,25 @@ def select_action(state):
     new_node = torch.reshape(new_node, (1, 1, 2))
     node_cat = torch.cat([node, new_node], 1)
 
+    # H1を除いたnode_catの作成
+    non_node1_node_cat = torch.cat(
+        [node_cat[:, 0:node1, :], node_cat[:, node1+1:, :]], 1)
+
     # H1の情報抽出
     H1 = emb_graph[0][node1]
-    H1_cat = H1.repeat(node_cat.shape[1], 1)
+    H1_cat = H1.repeat(non_node1_node_cat.shape[1], 1)
     H1_cat = H1_cat.unsqueeze(0)
-
     # HとH1のノード情報をconcat
-    emb_graph_cat = torch.cat([node_cat, H1_cat], 2)
+    emb_graph_cat = torch.cat([non_node1_node_cat, H1_cat], 2)
 
     # ノード2を求める
     node2_prob = Select_node2(emb_graph_cat)
     node2_categ = Categorical(node2_prob)
-    node2 = node2_categ.sample()
+    node2_temp = node2_categ.sample()
+    if node2_temp >= node1:
+        node2 = node2_temp+1  # node1分の調整
+    else:
+        node2 = node2_temp
     H2 = node_cat[0][node2]  # node_posよりH2の特徴を抽出
 
     # エッジの太さ決め
@@ -216,7 +223,7 @@ def select_action(state):
     Select_node1.saved_actions.append(Saved_prob_Action(
         node1_categ.log_prob(node1), state_value, node1.item()))
     Select_node2.saved_actions.append(Saved_prob_Action(
-        node2_categ.log_prob(node2), state_value, node2.item()))
+        node2_categ.log_prob(node2_temp), state_value, node2.item()))  # node2_tempを利用していることに注意
 
     X_Y.saved_actions.append(Saved_mean_std_Action(
         coord[0][:2], coord[0][2:], state_value, [coord_x_action, coord_y_action]))
@@ -291,8 +298,13 @@ def main():
         # for each episode, only run 9999 steps so that we don't
         # infinite loop while learning
         for t in range(1):
+            nodes_pos, edges_indices, edges_thickness, adj = env.extract_node_edge_info()
+            print(edges_indices)
             # select action from policy
             action = select_action(state)
+            print(action['which_node'])
+            nodes_pos, edges_indices, edges_thickness, adj = env.extract_node_edge_info()
+            print(edges_indices)
 
             # take the action
             state, reward, done, _ = env.step(action)
@@ -306,7 +318,7 @@ def main():
                 break
 
         # update cumulative reward
-        #running_reward = 0.05 * ep_reward + (1 - 0.05) * running_reward
+        # running_reward = 0.05 * ep_reward + (1 - 0.05) * running_reward
         #
         # perform backprop
         # finish_episode()
