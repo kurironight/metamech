@@ -170,6 +170,9 @@ def select_action(state):
     coord_y_tdist = tdist.Normal(coord[0][2].item(), coord[0][3].item())
     coord_x_action = coord_x_tdist.sample()
     coord_y_action = coord_y_tdist.sample()
+    # 0-1に収める
+    coord_x_action = torch.clamp(coord_x_action, min=0, max=1)
+    coord_y_action = torch.clamp(coord_y_action, min=0, max=1)
 
     # グラフ追加を止めるかどうか
     stop_prob = Stop(emb_graph)
@@ -216,6 +219,7 @@ def select_action(state):
     edge_thickness_tdist = tdist.Normal(
         edge_thickness[0][0].item(), edge_thickness[0][1].item())
     edge_thickness_action = edge_thickness_tdist.sample()
+    edge_thickness_action = torch.clamp(edge_thickness_action, min=0, max=1)
 
     # save to action buffer
     Stop.saved_actions.append(Saved_prob_Action(
@@ -299,12 +303,11 @@ def main():
         # infinite loop while learning
         for t in range(1):
             nodes_pos, edges_indices, edges_thickness, adj = env.extract_node_edge_info()
-            print(edges_indices)
             # select action from policy
             action = select_action(state)
-            print(action['which_node'])
+            print(action['edge_thickness'])
+            print(action['new_node'])
             nodes_pos, edges_indices, edges_thickness, adj = env.extract_node_edge_info()
-            print(edges_indices)
 
             # take the action
             state, reward, done, _ = env.step(action)
