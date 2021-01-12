@@ -2,7 +2,6 @@
 
 import argparse
 import numpy as np
-from itertools import count
 from collections import namedtuple
 from policy import model
 import torch
@@ -13,6 +12,7 @@ from env.gym_fem import FEMGym
 from tools.graph import make_T_matrix, make_edge_adj, make_D_matrix
 import torch.distributions as tdist
 from tools.lattice_preprocess import make_main_node_edge_info
+from tqdm import tqdm
 
 # Cart Pole
 
@@ -131,14 +131,22 @@ new_node_pos, new_input_nodes, new_input_vectors, new_output_nodes, new_output_v
 env = FEMGym(new_node_pos,
              new_edges_indices, new_edges_thickness)
 
-Saved_prob_Action = namedtuple('SavedAction', ['log_prob', 'value', 'action'])
+Saved_Action = namedtuple('SavedAction', ['action', 'value'])
+Saved_prob_Action = namedtuple('SavedAction', ['log_prob'])
 Saved_mean_std_Action = namedtuple(
-    'SavedAction', ['mean', 'variance', 'value', 'action'])
-optimizer = optim.Adam(GCN.parameters(), lr=3e-2)
+    'SavedAction', ['mean', 'variance'])
+GCN_optimizer = optim.Adam(GCN.parameters(), lr=3e-2)
+X_Y_optimizer = optim.Adam(X_Y.parameters(), lr=3e-2)
+Stop_optimizer = optim.Adam(Stop.parameters(), lr=3e-2)
+Select_node1_optimizer = optim.Adam(Select_node1.parameters(), lr=3e-2)
+Select_node2_optimizer = optim.Adam(Select_node2.parameters(), lr=3e-2)
+Edge_thickness_optimizer = optim.Adam(Edge_thickness.parameters(), lr=3e-2)
 
 
 def select_action(state):
     nodes_pos, edges_indices, edges_thickness, node_adj = env.extract_node_edge_info()
+
+    node_num = nodes_pos.shape[0]
 
     # GCNの為の引数を作成
     T = make_T_matrix(edges_indices)
@@ -166,8 +174,8 @@ def select_action(state):
     emb_graph, state_value = GCN(node, edge, node_adj, edge_adj, D_v, D_e, T)
     # 新規ノードの座標決め
     coord = X_Y(emb_graph)
-    coord_x_tdist = tdist.Normal(coord[0][0].item(), coord[0][1].item())
-    coord_y_tdist = tdist.Normal(coord[0][2].item(), coord[0][3].item())
+    coord_x_tdist = tdist.Normal(coord[0][0].item(), coord[0][2].item())
+    coord_y_tdist = tdist.Normal(coord[0][1].item(), coord[0][3].item())
     coord_x_action = coord_x_tdist.sample()
     coord_y_action = coord_y_tdist.sample()
     # 0-1に収める
@@ -221,26 +229,28 @@ def select_action(state):
     edge_thickness_action = edge_thickness_tdist.sample()
     edge_thickness_action = torch.clamp(edge_thickness_action, min=0, max=1)
 
-    # save to action buffer
-    Stop.saved_actions.append(Saved_prob_Action(
-        stop_categ.log_prob(stop), state_value, stop.item()))
-    Select_node1.saved_actions.append(Saved_prob_Action(
-        node1_categ.log_prob(node1), state_value, node1.item()))
-    Select_node2.saved_actions.append(Saved_prob_Action(
-        node2_categ.log_prob(node2_temp), state_value, node2.item()))  # node2_tempを利用していることに注意
-
-    X_Y.saved_actions.append(Saved_mean_std_Action(
-        coord[0][:2], coord[0][2:], state_value, [coord_x_action, coord_y_action]))
-    Edge_thickness.saved_actions.append(Saved_mean_std_Action(
-        edge_thickness[0][0], edge_thickness[0][1], state_value, edge_thickness_action))
-
     action = {}
     action["which_node"] = np.array(
-        [Select_node1.saved_actions[-1].action, Select_node2.saved_actions[-1].action])
-    action["new_node"] = np.array([X_Y.saved_actions[-1].action])
+        [node1.item(), node2.item()])
+    action["new_node"] = np.array([[coord_x_action, coord_y_action]])
     action["edge_thickness"] = np.array(
-        [Edge_thickness.saved_actions[-1].action])
-    action["end"] = Stop.saved_actions[-1].action
+        [edge_thickness_action])
+    action["end"] = stop.item()
+
+    # save to action buffer
+    GCN.saved_actions.append(Saved_Action(action, state_value))
+    Stop.saved_actions.append(Saved_prob_Action(
+        stop_categ.log_prob(stop)))
+    Select_node1.saved_actions.append(Saved_prob_Action(
+        node1_categ.log_prob(node1)))
+    Select_node2.saved_actions.append(Saved_prob_Action(
+        node2_categ.log_prob(node2_temp)))  # node2_tempを利用していることに注意
+
+    X_Y.saved_actions.append(Saved_mean_std_Action(
+        coord[0][:2], coord[0][2:]))
+    Edge_thickness.saved_actions.append(Saved_mean_std_Action(
+        edge_thickness[0][0], edge_thickness[0][1]))
+    GCN.node_nums.append(node_num)
 
     return action
 
@@ -250,7 +260,15 @@ def finish_episode():
     Training code. Calculates actor and critic loss and performs backprop.
     """
     R = 0
-    saved_actions = GCN.saved_actions
+    GCN_saved_actions = GCN.saved_actions
+    X_Y_saved_actions = X_Y.saved_actions
+    Stop_saved_actions = Stop.saved_actions
+    Select_node1_saved_actions = Select_node1.saved_actions
+    Select_node2_saved_actions = Select_node2.saved_actions
+    Edge_thickness_saved_actions = Edge_thickness.saved_actions
+
+    node_nums = GCN.node_nums
+
     policy_losses = []  # list to save actor (policy) loss
     value_losses = []  # list to save critic (value) loss
     returns = []  # list to save the true values
@@ -263,28 +281,80 @@ def finish_episode():
 
     returns = torch.tensor(returns)
 
-    for (log_prob, value), R in zip(saved_actions, returns):
+    for (action, value), (x_y_mean, x_y_var), stop_prob, node1_prob, node2_prob, (edge_thick_mean, edge_thick_var), node_num, R in zip(GCN_saved_actions, X_Y_saved_actions,
+                                                                                                                                       Stop_saved_actions, Select_node1_saved_actions,
+                                                                                                                                       Select_node2_saved_actions, Edge_thickness_saved_actions,
+                                                                                                                                       node_nums, returns):
+
         advantage = R - value.item()
 
         # calculate actor (policy) loss
-        policy_losses.append(-log_prob * advantage)
+        if action["end"]:
+            policy_losses.append(-stop_prob.log_prob[0] * advantage)
+        else:
+            log_probs = torch.cat([stop_prob.log_prob,
+                                   node1_prob.log_prob, node2_prob.log_prob])
+            if advantage <= 0:
+                policy_losses.append(-torch.mean(log_probs) * advantage)
+            else:
+                # 新規ノードが選択されているとき
+                if np.isin(node_num, action["which_node"]):
+                    x_y_mean_loss = F.l1_loss(torch.from_numpy(
+                        action["new_node"][0]).double(), x_y_mean)
+                    edge_thick_mean_loss = F.l1_loss(torch.from_numpy(
+                        action["edge_thickness"]).double(), edge_thick_mean)
 
-        # calculate critic (value) loss using L1 smooth loss
-        value_losses.append(F.smooth_l1_loss(value, torch.tensor([R])))
+                    x_y_var_loss = F.l1_loss(torch.from_numpy(
+                        np.abs(action["new_node"][0]-x_y_mean.to('cpu').detach().numpy().copy())).double(), torch.sqrt(x_y_var))
+                    edge_thick_var_loss = F.l1_loss(torch.from_numpy(
+                        np.abs(action["edge_thickness"]-edge_thick_mean.item())).double(), torch.sqrt(edge_thick_var))
+
+                    mean_loss = (x_y_mean_loss*2+edge_thick_mean_loss)/3
+                    var_loss = (x_y_var_loss*2+edge_thick_var_loss)/3
+
+                    policy_losses.append(
+                        (-torch.mean(log_probs)+mean_loss+var_loss) * advantage)
+                else:
+                    edge_thick_mean_loss = F.l1_loss(torch.from_numpy(
+                        action["edge_thickness"]).double(), edge_thick_mean)
+                    edge_thick_var_loss = F.l1_loss(torch.from_numpy(
+                        np.abs(action["edge_thickness"]-edge_thick_mean.item())).double(), torch.sqrt(edge_thick_var))
+                    policy_losses.append(
+                        (-torch.mean(log_probs)+edge_thick_mean_loss+edge_thick_var_loss) * advantage)
+
+        # calculate critic (value) loss using L1 loss
+        value_losses.append(F.l1_loss(value, torch.tensor([[R]]).double()))
 
     # reset gradients
-    optimizer.zero_grad()
+    GCN_optimizer.zero_grad()
+    X_Y_optimizer.zero_grad()
+    Stop_optimizer.zero_grad()
+    Select_node1_optimizer.zero_grad()
+    Select_node2_optimizer.zero_grad()
+    Edge_thickness_optimizer.zero_grad()
 
     # sum up all the values of policy_losses and value_losses
     loss = torch.stack(policy_losses).sum() + torch.stack(value_losses).sum()
+    print("loss:\n", loss.item())
 
     # perform backprop
     loss.backward()
-    optimizer.step()
+    GCN_optimizer.step()
+    X_Y_optimizer.step()
+    Stop_optimizer.step()
+    Select_node1_optimizer.step()
+    Select_node2_optimizer.step()
+    Edge_thickness_optimizer.step()
 
     # reset rewards and action buffer
     del GCN.rewards[:]
-    # del GCN.saved_actions[:]
+    del GCN.saved_actions[:]
+    del GCN.node_nums[:]
+    del X_Y.saved_actions[:]
+    del Stop.saved_actions[:]
+    del Select_node1.saved_actions[:]
+    del Select_node2.saved_actions[:]
+    del Edge_thickness.saved_actions[:]
 
 
 def main():
@@ -293,7 +363,7 @@ def main():
     state = env.reset()
 
     # run inifinitely many episodes
-    for i_episode in range(1):
+    for i_episode in tqdm(range(100)):
 
         # reset environment and episode reward
         state = env.reset()
@@ -301,41 +371,26 @@ def main():
 
         # for each episode, only run 9999 steps so that we don't
         # infinite loop while learning
-        for t in range(1):
+        for t in range(100):
             nodes_pos, edges_indices, edges_thickness, adj = env.extract_node_edge_info()
             # select action from policy
             action = select_action(state)
-            print(action['edge_thickness'])
-            print(action['new_node'])
             nodes_pos, edges_indices, edges_thickness, adj = env.extract_node_edge_info()
 
             # take the action
             state, reward, done, _ = env.step(action)
 
-            if args.render:
-                env.render()
-
             GCN.rewards.append(reward)
+
             ep_reward += reward
             if done:
                 break
 
         # update cumulative reward
-        # running_reward = 0.05 * ep_reward + (1 - 0.05) * running_reward
+        running_reward = 0.05 * ep_reward + (1 - 0.05) * running_reward
         #
         # perform backprop
-        # finish_episode()
-        #
-        # log results
-        # if i_episode % args.log_interval == 0:
-        #    print('Episode {}\tLast reward: {:.2f}\tAverage reward: {:.2f}'.format(
-        #          i_episode, ep_reward, running_reward))
-        #
-        # check if we have "solved" the cart pole problem
-        # if running_reward > env.spec.reward_threshold:
-        #    print("Solved! Running reward is now {} and "
-        #          "the last episode runs to {} time steps!".format(running_reward, t))
-        #    break
+        finish_episode()
 
 
 if __name__ == '__main__':
