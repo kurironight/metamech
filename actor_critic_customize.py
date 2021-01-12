@@ -121,8 +121,8 @@ GCN = model.GCN_fund_model(2, 1, node_out_features, 3).double()
 X_Y = model.X_Y_model(node_out_features, 2).double()  # なぜかdoubleが必要だった
 Stop = model.Stop_model(node_out_features, 2).double()
 Select_node1 = model.Select_node1_model(node_out_features, 2).double()
-Select_node2 = model.Select_node2_model(2*node_out_features, 2).double()
-Edge_thickness = model.Edge_thickness_model(2*node_out_features, 2).double()
+Select_node2 = model.Select_node2_model(2+node_out_features, 2).double()
+Edge_thickness = model.Edge_thickness_model(2+node_out_features, 2).double()
 
 
 # gymに入力する要素を抽出
@@ -164,7 +164,14 @@ def select_action(state):
 
     # action求め
     emb_graph, state_value = GCN(node, edge, node_adj, edge_adj, D_v, D_e, T)
+    # 新規ノードの座標決め
     coord = X_Y(emb_graph)
+    coord_x_tdist = tdist.Normal(coord[0][0].item(), coord[0][1].item())
+    coord_y_tdist = tdist.Normal(coord[0][2].item(), coord[0][3].item())
+    coord_x_action = coord_x_tdist.sample()
+    coord_y_action = coord_y_tdist.sample()
+
+    # グラフ追加を止めるかどうか
     stop_prob = Stop(emb_graph)
     stop_categ = Categorical(stop_prob)
     stop = stop_categ.sample()
@@ -173,30 +180,34 @@ def select_action(state):
     node1_prob = Select_node1(emb_graph)
     node1_categ = Categorical(node1_prob)
     node1 = node1_categ.sample()
+
+    # 新規ノード
+    new_node = torch.Tensor([coord_x_action, coord_y_action]).double()
+    new_node = torch.reshape(new_node, (1, 1, 2))
+    node_cat = torch.cat([node, new_node], 1)
+
+    # H1の情報抽出
     H1 = emb_graph[0][node1]
-    H1 = H1.repeat(emb_graph.shape[1], 1)
-    H1 = H1.unsqueeze(0)
+    H1_cat = H1.repeat(node_cat.shape[1], 1)
+    H1_cat = H1_cat.unsqueeze(0)
+
     # HとH1のノード情報をconcat
-    emb_graph_cat = torch.cat([emb_graph, H1], 2)
+    emb_graph_cat = torch.cat([node_cat, H1_cat], 2)
+
     # ノード2を求める
     node2_prob = Select_node2(emb_graph_cat)
     node2_categ = Categorical(node2_prob)
     node2 = node2_categ.sample()
-    H2 = emb_graph[0][node2]
-    H2 = H2.repeat(emb_graph.shape[1], 1)
-    H2 = H2.unsqueeze(0)
+    H2 = node_cat[0][node2]  # node_posよりH2の特徴を抽出
+
+    # エッジの太さ決め
     # H1とH2のノード情報をconcat
+    H1 = H1.unsqueeze(0)
+    H2 = H2.unsqueeze(0)
     emb_graph_cat2 = torch.cat([H1, H2], 2)
     edge_thickness = Edge_thickness(emb_graph_cat2)
-
-    # 正規分布よりactionを選択
-    coord_x_tdist = tdist.Normal(coord[0][0].item(), coord[0][1].item())
-    coord_y_tdist = tdist.Normal(coord[0][2].item(), coord[0][3].item())
     edge_thickness_tdist = tdist.Normal(
         edge_thickness[0][0].item(), edge_thickness[0][1].item())
-
-    coord_x_action = coord_x_tdist.sample()
-    coord_y_action = coord_y_tdist.sample()
     edge_thickness_action = edge_thickness_tdist.sample()
 
     # save to action buffer
@@ -279,15 +290,12 @@ def main():
 
         # for each episode, only run 9999 steps so that we don't
         # infinite loop while learning
-        for t in range(2):
+        for t in range(1):
             # select action from policy
             action = select_action(state)
 
             # take the action
-            print(env.extract_node_edge_info()[1])
-            print(action)
             state, reward, done, _ = env.step(action)
-            print(env.extract_node_edge_info()[1])
 
             if args.render:
                 env.render()
