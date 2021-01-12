@@ -10,6 +10,10 @@ class GCN_fund_model(torch.nn.Module):
         super(GCN_fund_model, self).__init__()
         self.GCN1 = CensNet(node_in_features, edge_in_features, node_out_features,
                             edge_out_features)
+        self.GCN2 = CensNet(node_out_features, edge_out_features, node_out_features,
+                            edge_out_features)
+        self.predict_v1 = torch.nn.Linear(node_out_features, node_out_features)
+        self.predict_v2 = torch.nn.Linear(node_out_features, 1)
 
         # action & reward buffer
         self.saved_actions = []
@@ -20,8 +24,12 @@ class GCN_fund_model(torch.nn.Module):
         forward of both actor and critic
         """
         node, edge = self.GCN1(node, edge, node_adj, edge_adj, D_v, D_e, T)
+        node, edge = self.GCN2(node, edge, node_adj, edge_adj, D_v, D_e, T)
+        value = F.relu(self.predict_v1(node))  # 1*node_num*node_out_features
+        value = torch.mean(value, dim=1)  # 1*node_out_features
+        value = self.predict_v2(value)  # 1*1
 
-        return node
+        return node, value
 
 
 class X_Y_model(torch.nn.Module):
@@ -36,7 +44,7 @@ class X_Y_model(torch.nn.Module):
 
     def forward(self, emb_graph):
         x = F.relu(self.layer1(emb_graph))  # 1*node_num*emb_size
-        x = torch.mean(x, dim=1)  # 1*node_num
+        x = torch.mean(x, dim=1)  # 1*emb_size
         x = torch.sigmoid(self.layer2(x))  # 1*2
 
         return x
@@ -54,7 +62,7 @@ class Stop_model(torch.nn.Module):
 
     def forward(self, emb_graph):
         x = F.relu(self.layer1(emb_graph))  # 1*node_num*emb_size
-        x = torch.mean(x, dim=1)  # 1*node_num
+        x = torch.mean(x, dim=1)  # 1*emb_size
         x = torch.sigmoid(self.layer2(x))  # 1*1
 
         return x
@@ -109,7 +117,7 @@ class Edge_thickness_model(torch.nn.Module):
 
     def forward(self, emb_graph):
         x = F.relu(self.layer1(emb_graph))  # 1*node_num*emb_size
-        x = torch.mean(x, dim=1)  # 1*node_num
+        x = torch.mean(x, dim=1)  # 1*emb_size
         x = torch.sigmoid(self.layer2(x))  # 1*1
 
         return x
