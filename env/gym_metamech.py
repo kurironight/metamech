@@ -84,12 +84,14 @@ class MetamechGym(gym.Env):
         return action
 
     def step(self, action):
+
         # padding部分を排除した情報を抽出
         nodes_pos, edges_indices, edges_thickness, _ = self.extract_node_edge_info()
         node_num = nodes_pos.shape[0]
 
         assert action['which_node'][1] <= node_num and action['which_node'][
             0] < node_num, 'action selects node which is higher than existing {} node or new node'.format(node_num)
+        assert action['which_node'][1] != action['which_node'][0], 'same node are selected for action'
 
         if action['end']:  # 終了条件を満たす場合
             # TODO 本来はこれは，外側の方で行うこと
