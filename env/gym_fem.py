@@ -47,8 +47,8 @@ class FEMGym(MetamechGym):
         self.check_freeze_mesh_index = (0, int(nx/2))
 
         # efficiencyを計算するとき，節点変位を確認する出力部の節点のDOF
-        self.check_x_output_node_DOF = 2*ny-1
-        self.check_y_output_node_DOF = 2*ny
+        self.check_x_output_node_DOF = 2*(ny+1)-1
+        self.check_y_output_node_DOF = 2*(ny+1)
         # efficiencyを計算するとき，出力部の目標ベクトル
         self.output_vector = np.array([-1, 0])
 
