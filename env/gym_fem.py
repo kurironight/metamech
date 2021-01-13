@@ -96,7 +96,7 @@ class FEMGym(MetamechGym):
             return False
 
     # 環境の描画
-    def render(self, save_path="image.png"):
+    def render(self, save_path="image/image.png"):
         dir_name = os.path.dirname(save_path)
         if not os.path.exists(dir_name):
             os.makedirs(dir_name)

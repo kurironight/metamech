@@ -16,7 +16,7 @@ def make_main_node_edge_info(origin_nodes_positions, origin_edges_indices, origi
     new_edges_indices = make_main_edges_indices(
         origin_edges_indices, origin_input_nodes, origin_output_nodes, origin_frozen_nodes)
 
-    new_edges_thickness = np.ones(len(new_edges_indices))*0.5
+    new_edges_thickness = np.ones(len(new_edges_indices))
 
     new_input_vectors = origin_input_vectors
     new_output_vectors = origin_output_vectors
