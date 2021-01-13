@@ -13,6 +13,7 @@ from tools.graph import make_T_matrix, make_edge_adj, make_D_matrix
 import torch.distributions as tdist
 from tools.lattice_preprocess import make_main_node_edge_info
 from tqdm import tqdm
+from itertools import count
 from tools.plot import plot_loss_history, plot_reward_history, plot_efficiency_history
 
 # 初期のノードの状態を抽出
@@ -104,13 +105,13 @@ origin_frozen_nodes = [1, 3, 5, 7, 9, 11, 13, 15]
 
 
 # パラメータ
-test_name = "test"  # 実験名
+test_name = "trial1"  # 実験名
 node_out_features = 3
 node_features = 3  # 座標2つ，ラベル1つ
 gamma = 0.99  # 割引率
 lr = 0.03  # 学習率
 train_num = 10  # 学習回数
-max_action = 100  # 1episodeの最大試行回数
+max_action = 500  # 1episodeの最大試行回数
 log_dir = "results/{}".format(test_name)
 
 if not os.path.exists(log_dir):
@@ -403,7 +404,8 @@ def main():
     first_node_num = nodes_pos.shape[0]
 
     # run inifinitely many episodes
-    for epoch in tqdm(range(train_num)):
+    # for epoch in tqdm(range(train_num)):
+    for epoch in count(1):
 
         # reset environment and episode reward
         state = env.reset()
@@ -475,6 +477,9 @@ def main():
             log_dir, 'learning_reward_curve.png'))
         plot_efficiency_history(history, os.path.join(
             log_dir, 'learning_effi_curve.png'))
+
+        if result_efficiency > 0:
+            break
 
 
 if __name__ == '__main__':
