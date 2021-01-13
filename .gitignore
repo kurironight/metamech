@@ -152,3 +152,4 @@ try.py
 *.png
 *.npy
 results/
+prior_thesis_results/
