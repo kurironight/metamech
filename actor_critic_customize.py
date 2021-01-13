@@ -143,7 +143,7 @@ Select_node2_optimizer = optim.Adam(Select_node2.parameters(), lr=3e-2)
 Edge_thickness_optimizer = optim.Adam(Edge_thickness.parameters(), lr=3e-2)
 
 
-def select_action(state):
+def select_action():
     nodes_pos, edges_indices, edges_thickness, node_adj = env.extract_node_edge_info()
 
     node_num = nodes_pos.shape[0]
@@ -335,7 +335,6 @@ def finish_episode():
 
     # sum up all the values of policy_losses and value_losses
     loss = torch.stack(policy_losses).sum() + torch.stack(value_losses).sum()
-    print("loss:\n", loss.item())
 
     # perform backprop
     loss.backward()
@@ -359,6 +358,9 @@ def finish_episode():
 
 def main():
     running_reward = 10
+    prior_efficiency = 0
+    penalty = 0.001
+
     # １エピソードのループ
     state = env.reset()
 
@@ -372,13 +374,19 @@ def main():
         # for each episode, only run 9999 steps so that we don't
         # infinite loop while learning
         for t in range(100):
-            nodes_pos, edges_indices, edges_thickness, adj = env.extract_node_edge_info()
             # select action from policy
-            action = select_action(state)
+            action = select_action()
             nodes_pos, edges_indices, edges_thickness, adj = env.extract_node_edge_info()
 
             # take the action
-            state, reward, done, _ = env.step(action)
+            state, _, done, info = env.step(action)
+            if info['status'] == 1:  # 初期ノードに対してエッジを選択しているとき
+                reward = -penalty
+            elif env.confirm_graph_is_connected():
+                reward = env.calculate_simulation()-prior_efficiency
+                prior_efficiency = reward
+            else:  # 連結していない状態の時
+                reward = -penalty
 
             GCN.rewards.append(reward)
 
