@@ -1,10 +1,26 @@
 import numpy as np
 from env.gym_fem import FEMGym
 from tqdm import tqdm
+import os
+import pickle
+from tools.plot import plot_efficiency_history
 
 initial_temperature = 0.06
 final_temperature = 0.001
 steps = 500  # 試行回数
+EDGE_THICKNESS = 0.2  # エッジの太さ
+test_name = "500_revise"
+
+# 学習の推移
+history = {}
+history['epoch'] = []
+history['result_efficiency'] = []
+
+# directoryの作成
+log_dir = "prior_thesis_results/{}".format(test_name)
+
+if not os.path.exists(log_dir):
+    os.makedirs(log_dir)
 
 # tempリストの準備
 temperatures = np.linspace(
@@ -81,7 +97,7 @@ origin_edges_indices = np.array([
 ])
 
 edge_num = origin_edges_indices.shape[0]
-origin_edges_thickness = np.ones(edge_num)*0.2
+origin_edges_thickness = np.ones(edge_num)*EDGE_THICKNESS
 
 origin_input_nodes = [81, 82, 83, 84]
 
@@ -95,17 +111,21 @@ condition_nodes = origin_input_nodes+origin_output_nodes+origin_frozen_nodes
 env = FEMGym(origin_nodes_positions,
              origin_edges_indices, origin_edges_thickness)
 env.reset()
+env.render(os.path.join(log_dir, 'render_image/first.png'))
+
+# 初期状態を作成
+best_efficiency = -1000
 current_efficiency = env.calculate_simulation()
 
 current_edges_indices = origin_edges_indices.copy()
 
-for i, temperature in tqdm(enumerate(temperatures)):
-    # エッジを選択
+for epoch, temperature in tqdm(enumerate(temperatures)):
+    # 条件ノードの間にあるエッジ以外のエッジを選択
     while(1):
         chosen_edge_indice = np.random.randint(0, edge_num)
-        if chosen_edge_indice not in condition_nodes:
+        target_edge_indice = origin_edges_indices[chosen_edge_indice]
+        if not np.any(np.isin(target_edge_indice, condition_nodes)):
             break
-    target_edge_indice = origin_edges_indices[chosen_edge_indice]
 
     # proposed_efficiencyを求める
     mask = np.isin(current_edges_indices[:, 0], target_edge_indice) & np.isin(
@@ -118,7 +138,8 @@ for i, temperature in tqdm(enumerate(temperatures)):
         proposed_edges_indices = np.concatenate(
             [current_edges_indices, np.array([target_edge_indice])])
 
-    proposed_edges_thickness = np.ones(proposed_edges_indices.shape[0])*0.2
+    proposed_edges_thickness = np.ones(
+        proposed_edges_indices.shape[0])*EDGE_THICKNESS
 
     env = FEMGym(origin_nodes_positions,
                  proposed_edges_indices, proposed_edges_thickness)
@@ -152,4 +173,22 @@ for i, temperature in tqdm(enumerate(temperatures)):
         current_edges_thickness = proposed_edges_thickness
         current_efficiency = proposed_efficiency
 
-    print('{}steps  efficiency:{}'.format(i, current_efficiency))
+    if best_efficiency < current_efficiency:
+        best_epoch = epoch
+        best_efficiency = current_efficiency
+        env.render(os.path.join(
+            log_dir, 'render_image/{}.png'.format(epoch+1)))
+
+    history['epoch'].append(epoch+1)
+    history['result_efficiency'].append(current_efficiency)
+    # 学習履歴を保存
+    with open(os.path.join(log_dir, 'history.pkl'), 'wb') as f:
+        pickle.dump(history, f)
+    with open(os.path.join(log_dir, "progress.txt"), mode='a') as f:
+        f.writelines('epoch %d,  result_efficiency: %.5f\n' %
+                     (epoch + 1, current_efficiency))
+    with open(os.path.join(log_dir, "represent_value.txt"), mode='w') as f:
+        f.writelines('epoch %d,  best_efficiency: %.5f\n' %
+                     (best_epoch+1, best_efficiency))
+    plot_efficiency_history(history, os.path.join(
+        log_dir, 'learning_effi_curve.png'))
