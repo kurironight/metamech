@@ -117,7 +117,7 @@ origin_frozen_nodes = [1, 3, 5, 7, 9, 11, 13, 15]
 
 # ポリシーモデル定義
 node_out_features = 3
-node_features = 3
+node_features = 3  # 座標2つ，ラベル1つ
 GCN = model.GCN_fund_model(node_features, 1, node_out_features, 3).double()
 X_Y = model.X_Y_model(node_out_features, 2).double()  # なぜかdoubleが必要だった
 Stop = model.Stop_model(node_out_features, 2).double()
