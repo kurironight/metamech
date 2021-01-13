@@ -115,7 +115,10 @@ env.render(os.path.join(log_dir, 'render_image/first.png'))
 
 # 初期状態を作成
 best_efficiency = -1000
-current_efficiency = env.calculate_simulation()
+if env.confirm_graph_is_connected():
+    current_efficiency = env.calculate_simulation()
+else:
+    current_efficiency = -1
 
 current_edges_indices = origin_edges_indices.copy()
 
@@ -144,7 +147,10 @@ for epoch, temperature in tqdm(enumerate(temperatures)):
     env = FEMGym(origin_nodes_positions,
                  proposed_edges_indices, proposed_edges_thickness)
     env.reset()
-    proposed_efficiency = env.calculate_simulation()
+    if env.confirm_graph_is_connected():
+        proposed_efficiency = env.calculate_simulation()
+    else:
+        proposed_efficiency = -1
 
     delta_efficiency = proposed_efficiency - current_efficiency
 
