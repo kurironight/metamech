@@ -108,6 +108,7 @@ test_name = "test"  # 実験名
 node_out_features = 3
 node_features = 3  # 座標2つ，ラベル1つ
 gamma = 0.99  # 割引率
+lr = 0.03  # 学習率
 train_num = 10  # 学習回数
 max_action = 100  # 1episodeの最大試行回数
 log_dir = "results/{}".format(test_name)
@@ -144,12 +145,12 @@ Saved_Action = namedtuple('SavedAction', ['action', 'value'])
 Saved_prob_Action = namedtuple('SavedAction', ['log_prob'])
 Saved_mean_std_Action = namedtuple(
     'SavedAction', ['mean', 'variance'])
-GCN_optimizer = optim.Adam(GCN.parameters(), lr=3e-2)
-X_Y_optimizer = optim.Adam(X_Y.parameters(), lr=3e-2)
-Stop_optimizer = optim.Adam(Stop.parameters(), lr=3e-2)
-Select_node1_optimizer = optim.Adam(Select_node1.parameters(), lr=3e-2)
-Select_node2_optimizer = optim.Adam(Select_node2.parameters(), lr=3e-2)
-Edge_thickness_optimizer = optim.Adam(Edge_thickness.parameters(), lr=3e-2)
+GCN_optimizer = optim.Adam(GCN.parameters(), lr=lr)
+X_Y_optimizer = optim.Adam(X_Y.parameters(), lr=lr)
+Stop_optimizer = optim.Adam(Stop.parameters(), lr=lr)
+Select_node1_optimizer = optim.Adam(Select_node1.parameters(), lr=lr)
+Select_node2_optimizer = optim.Adam(Select_node2.parameters(), lr=lr)
+Edge_thickness_optimizer = optim.Adam(Edge_thickness.parameters(), lr=lr)
 
 
 def select_action(first_node_num):
@@ -387,9 +388,6 @@ def save_model(save_name="Good"):
         log_dir, '{}_Edge_thickness.pth'.format(save_name)))
 
 
-#
-
-
 def main():
     # running_reward = 0
     prior_efficiency = 0
@@ -471,12 +469,12 @@ def main():
                          (best_epoch+1, best_efficiency))
         save_model(save_name="Last")
 
-    plot_loss_history(history, os.path.join(
-        log_dir, 'learning_loss_curve.png'))
-    plot_reward_history(history, os.path.join(
-        log_dir, 'learning_reward_curve.png'))
-    plot_efficiency_history(history, os.path.join(
-        log_dir, 'learning_effi_curve.png'))
+        plot_loss_history(history, os.path.join(
+            log_dir, 'learning_loss_curve.png'))
+        plot_reward_history(history, os.path.join(
+            log_dir, 'learning_reward_curve.png'))
+        plot_efficiency_history(history, os.path.join(
+            log_dir, 'learning_effi_curve.png'))
 
 
 if __name__ == '__main__':
