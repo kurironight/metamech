@@ -151,3 +151,4 @@ metamech/input/*
 try.py
 *.png
 *.npy
+results/
