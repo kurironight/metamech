@@ -117,12 +117,15 @@ origin_frozen_nodes = [1, 3, 5, 7, 9, 11, 13, 15]
 
 # ポリシーモデル定義
 node_out_features = 3
-GCN = model.GCN_fund_model(2, 1, node_out_features, 3).double()
+node_features = 3
+GCN = model.GCN_fund_model(node_features, 1, node_out_features, 3).double()
 X_Y = model.X_Y_model(node_out_features, 2).double()  # なぜかdoubleが必要だった
 Stop = model.Stop_model(node_out_features, 2).double()
 Select_node1 = model.Select_node1_model(node_out_features, 2).double()
-Select_node2 = model.Select_node2_model(2+node_out_features, 2).double()
-Edge_thickness = model.Edge_thickness_model(2+node_out_features, 2).double()
+Select_node2 = model.Select_node2_model(
+    node_features+node_out_features, 2).double()
+Edge_thickness = model.Edge_thickness_model(
+    node_features+node_out_features, 2).double()
 
 
 # gymに入力する要素を抽出
@@ -143,10 +146,15 @@ Select_node2_optimizer = optim.Adam(Select_node2.parameters(), lr=3e-2)
 Edge_thickness_optimizer = optim.Adam(Edge_thickness.parameters(), lr=3e-2)
 
 
-def select_action():
+def select_action(first_node_num):
     nodes_pos, edges_indices, edges_thickness, node_adj = env.extract_node_edge_info()
 
     node_num = nodes_pos.shape[0]
+
+    # ラベル作成
+    label = np.zeros((node_num, 1))
+    label[:first_node_num] = 1
+    nodes_pos = np.concatenate([nodes_pos, label], 1)
 
     # GCNの為の引数を作成
     T = make_T_matrix(edges_indices)
@@ -193,8 +201,8 @@ def select_action():
     node1 = node1_categ.sample()
 
     # 新規ノード
-    new_node = torch.Tensor([coord_x_action, coord_y_action]).double()
-    new_node = torch.reshape(new_node, (1, 1, 2))
+    new_node = torch.Tensor([coord_x_action, coord_y_action, 0]).double()
+    new_node = torch.reshape(new_node, (1, 1, 3))
     node_cat = torch.cat([node, new_node], 1)
 
     # H1を除いたnode_catの作成
@@ -316,9 +324,9 @@ def finish_episode():
                         (-torch.mean(log_probs)+mean_loss+var_loss) * advantage)
                 else:
                     edge_thick_mean_loss = F.l1_loss(torch.from_numpy(
-                        action["edge_thickness"]).double(), edge_thick_mean)
+                        action["edge_thickness"]).double(), torch.tensor([edge_thick_mean]))
                     edge_thick_var_loss = F.l1_loss(torch.from_numpy(
-                        np.abs(action["edge_thickness"]-edge_thick_mean.item())).double(), torch.sqrt(edge_thick_var))
+                        np.abs(action["edge_thickness"]-edge_thick_mean.item())).double(), torch.tensor([torch.sqrt(edge_thick_var)]))
                     policy_losses.append(
                         (-torch.mean(log_probs)+edge_thick_mean_loss+edge_thick_var_loss) * advantage)
 
@@ -363,9 +371,11 @@ def main():
 
     # １エピソードのループ
     state = env.reset()
+    nodes_pos, _, _, _ = env.extract_node_edge_info()
+    first_node_num = nodes_pos.shape[0]
 
     # run inifinitely many episodes
-    for i_episode in tqdm(range(100)):
+    for i_episode in tqdm(range(1)):
 
         # reset environment and episode reward
         state = env.reset()
@@ -373,9 +383,9 @@ def main():
 
         # for each episode, only run 9999 steps so that we don't
         # infinite loop while learning
-        for t in range(100):
+        for t in range(1):
             # select action from policy
-            action = select_action()
+            action = select_action(first_node_num)
             nodes_pos, edges_indices, edges_thickness, adj = env.extract_node_edge_info()
 
             # take the action
