@@ -5,6 +5,7 @@ from metamech.lattice import Lattice
 from metamech.actuator import Actuator
 from metamech.viz import show_actuator
 import networkx as nx
+import os
 
 MAX_NODE = 100
 LINEAR_STIFFNESS = 10
@@ -185,6 +186,10 @@ class MetamechGym(gym.Env):
 
     # 環境の描画
     def render(self, save_path="image.png"):
+        dir_name = os.path.dirname(save_path)
+        if not os.path.exists(dir_name):
+            os.makedirs(dir_name)
+
         nodes_pos, edges_indices, edges_thickness, _ = self.extract_node_edge_info()
 
         lattice = Lattice(

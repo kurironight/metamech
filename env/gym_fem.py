@@ -4,6 +4,7 @@ from FEM.fem import FEM, FEM_displacement
 import matplotlib.pyplot as plt
 from .gym_metamech import MetamechGym
 import cv2
+import os
 
 MAX_NODE = 100
 PIXEL = 50
@@ -96,8 +97,11 @@ class FEMGym(MetamechGym):
 
     # 環境の描画
     def render(self, save_path="image.png"):
-        rho = self.extract_rho_for_fem()
+        dir_name = os.path.dirname(save_path)
+        if not os.path.exists(dir_name):
+            os.makedirs(dir_name)
 
+        rho = self.extract_rho_for_fem()
         ny, nx = rho.shape
         x = np.arange(0, nx+1)  # x軸の描画範囲の生成。
         y = np.arange(0, ny+1)  # y軸の描画範囲の生成。
