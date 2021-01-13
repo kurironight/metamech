@@ -1,6 +1,6 @@
 
-
-import argparse
+import pickle
+import os
 import numpy as np
 from collections import namedtuple
 from policy import model
@@ -13,19 +13,7 @@ from tools.graph import make_T_matrix, make_edge_adj, make_D_matrix
 import torch.distributions as tdist
 from tools.lattice_preprocess import make_main_node_edge_info
 from tqdm import tqdm
-
-# Cart Pole
-
-parser = argparse.ArgumentParser(description='PyTorch actor-critic example')
-parser.add_argument('--gamma', type=float, default=0.99, metavar='G',
-                    help='discount factor (default: 0.99)')
-parser.add_argument('--seed', type=int, default=543, metavar='N',
-                    help='random seed (default: 543)')
-parser.add_argument('--render', action='store_true',
-                    help='render the environment')
-parser.add_argument('--log-interval', type=int, default=10, metavar='N',
-                    help='interval between training status logs (default: 10)')
-args = parser.parse_args()
+from tools.plot import plot_loss_history, plot_reward_history, plot_efficiency_history
 
 # 初期のノードの状態を抽出
 origin_nodes_positions = np.array([
@@ -115,9 +103,27 @@ origin_output_vectors = np.array([
 origin_frozen_nodes = [1, 3, 5, 7, 9, 11, 13, 15]
 
 
-# ポリシーモデル定義
+# パラメータ
+test_name = "test"  # 実験名
 node_out_features = 3
 node_features = 3  # 座標2つ，ラベル1つ
+gamma = 0.99  # 割引率
+train_num = 10  # 学習回数
+max_action = 100  # 1episodeの最大試行回数
+log_dir = "results/{}".format(test_name)
+
+if not os.path.exists(log_dir):
+    os.makedirs(log_dir)
+
+# 学習の推移
+history = {}
+history['epoch'] = []
+history['loss'] = []
+history['ep_reward'] = []
+history['result_efficiency'] = []
+
+
+# モデル定義
 GCN = model.GCN_fund_model(node_features, 1, node_out_features, 3).double()
 X_Y = model.X_Y_model(node_out_features, 2).double()  # なぜかdoubleが必要だった
 Stop = model.Stop_model(node_out_features, 2).double()
@@ -284,7 +290,7 @@ def finish_episode():
     # calculate the true value using rewards returned from the environment
     for r in GCN.rewards[::-1]:
         # calculate the discounted value
-        R = r + args.gamma * R
+        R = r + gamma * R
         returns.insert(0, R)
 
     returns = torch.tensor(returns)
@@ -363,13 +369,35 @@ def finish_episode():
     del Select_node2.saved_actions[:]
     del Edge_thickness.saved_actions[:]
 
+    return loss.item()
+
+
+def save_model(save_name="Good"):
+    torch.save(GCN.state_dict(), os.path.join(
+        log_dir, '{}_GCN.pth'.format(save_name)))
+    torch.save(X_Y.state_dict(), os.path.join(
+        log_dir, '{}_X_Y.pth'.format(save_name)))
+    torch.save(Stop.state_dict(), os.path.join(
+        log_dir, '{}_Stop.pth'.format(save_name)))
+    torch.save(Select_node1.state_dict(), os.path.join(
+        log_dir, '{}_Select_node1.pth'.format(save_name)))
+    torch.save(Select_node2.state_dict(), os.path.join(
+        log_dir, '{}_Select_node2.pth'.format(save_name)))
+    torch.save(Edge_thickness.state_dict(), os.path.join(
+        log_dir, '{}_Edge_thickness.pth'.format(save_name)))
+
+
+#
+
 
 def main():
-    running_reward = 0
+    # running_reward = 0
     prior_efficiency = 0
-    penalty = 0.001
+    penalty = 0.001  # 時刻内に終了しなかった場合のペナルティ
+    final_penalty = 2  # 時刻内に終了しなかった場合のペナルティ
 
-    max_action = 100
+    best_efficiency = -1000
+    best_epoch = 0
 
     # １エピソードのループ
     state = env.reset()
@@ -377,7 +405,7 @@ def main():
     first_node_num = nodes_pos.shape[0]
 
     # run inifinitely many episodes
-    for i_episode in tqdm(range(1000)):
+    for epoch in tqdm(range(train_num)):
 
         # reset environment and episode reward
         state = env.reset()
@@ -398,7 +426,7 @@ def main():
                 reward = env.calculate_simulation()-prior_efficiency
                 prior_efficiency = reward
             elif (t == (max_action-1)) and (done is not True):  # max_action内にてactionが終わらない時
-                reward = -2
+                reward = -final_penalty
             else:  # 連結していない状態の時
                 reward = -penalty
 
@@ -409,11 +437,46 @@ def main():
                 break
 
         # update cumulative reward
-        running_reward = 0.05 * ep_reward + (1 - 0.05) * running_reward
-        #
+        # running_reward = 0.05 * ep_reward + (1 - 0.05) * running_reward
+
         # perform backprop
-        finish_episode()
-        print("episode:{} running_reward:{}".format(i_episode, running_reward))
+        loss = finish_episode()
+
+        # efficiencyの最終結果を求める
+        if env.confirm_graph_is_connected():
+            result_efficiency = env.calculate_simulation()
+        else:
+            result_efficiency = -1
+
+        if best_efficiency < result_efficiency:
+            best_epoch = epoch
+            best_efficiency = result_efficiency
+            save_model(save_name="Good")
+            env.render(os.path.join(
+                log_dir, 'render_image/{}.png'.format(epoch+1)))
+
+        history['epoch'].append(epoch+1)
+        history['loss'].append(loss)
+        history['ep_reward'].append(ep_reward)
+        history['result_efficiency'].append(result_efficiency)
+
+        # 学習履歴を保存
+        with open(os.path.join(log_dir, 'history.pkl'), 'wb') as f:
+            pickle.dump(history, f)
+        with open(os.path.join(log_dir, "progress.txt"), mode='a') as f:
+            f.writelines('epoch %d, loss: %.4f ep_reward: %.4f result_efficiency: %.4f\n' %
+                         (epoch + 1, loss, ep_reward, result_efficiency))
+        with open(os.path.join(log_dir, "represent_value.txt"), mode='w') as f:
+            f.writelines('epoch %d,  best_efficiency: %.4f\n' %
+                         (best_epoch+1, best_efficiency))
+        save_model(save_name="Last")
+
+    plot_loss_history(history, os.path.join(
+        log_dir, 'learning_loss_curve.png'))
+    plot_reward_history(history, os.path.join(
+        log_dir, 'learning_reward_curve.png'))
+    plot_efficiency_history(history, os.path.join(
+        log_dir, 'learning_effi_curve.png'))
 
 
 if __name__ == '__main__':
