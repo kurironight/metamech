@@ -9,12 +9,14 @@ class GCN_fund_model(torch.nn.Module):
         super(GCN_fund_model, self).__init__()
         self.GCN1 = CensNet(node_in_features, edge_in_features, node_out_features,
                             edge_out_features)
-        self.GCN2 = CensNet(node_out_features, edge_out_features, node_out_features,
-                            edge_out_features)
+        self.GCN2 = CensNet(node_out_features, edge_out_features,
+                            node_out_features, edge_out_features)
         self.predict_v1 = torch.nn.Linear(node_out_features, node_out_features)
         self.predict_v2 = torch.nn.Linear(node_out_features, 1)
 
+        self.saved_actions = []
         self.rewards = []
+        self.node_nums = []
 
     def forward(self, node, edge, node_adj, edge_adj, D_v, D_e, T):
         """
@@ -37,7 +39,6 @@ class X_Y_model(torch.nn.Module):
 
         # action & reward buffer
         self.saved_actions = []
-        self.rewards = []
 
     def forward(self, emb_graph):
         x = F.relu(self.layer1(emb_graph))  # 1*node_num*emb_size
@@ -51,17 +52,15 @@ class Stop_model(torch.nn.Module):
     def __init__(self, node_in_features, emb_size):
         super(Stop_model, self).__init__()
         self.layer1 = torch.nn.Linear(node_in_features, emb_size)
-        self.layer2 = torch.nn.Linear(emb_size, 1)
+        self.layer2 = torch.nn.Linear(emb_size, 2)
 
         # action & reward buffer
         self.saved_actions = []
-        self.rewards = []
 
     def forward(self, emb_graph):
         x = F.relu(self.layer1(emb_graph))  # 1*node_num*emb_size
         x = torch.mean(x, dim=1)  # 1*emb_size
-        x = torch.sigmoid(self.layer2(x))  # 1*1
-
+        x = F.softmax(self.layer2(x), dim=-1)  # 1*2
         return x
 
 
@@ -73,7 +72,6 @@ class Select_node1_model(torch.nn.Module):
 
         # action & reward buffer
         self.saved_actions = []
-        self.rewards = []
 
     def forward(self, emb_graph):
         x = self.layer1(emb_graph)  # 1*node_num*emb_size
@@ -92,7 +90,6 @@ class Select_node2_model(torch.nn.Module):
 
         # action & reward buffer
         self.saved_actions = []
-        self.rewards = []
 
     def forward(self, emb_graph):
         x = self.layer1(emb_graph)  # 1*node_num*emb_size
@@ -110,10 +107,9 @@ class Edge_thickness_model(torch.nn.Module):
 
         # action & reward buffer
         self.saved_actions = []
-        self.rewards = []
 
     def forward(self, emb_graph):
-        x = F.relu(self.layer1(emb_graph))  # 1*node_num*emb_size
+        x = F.relu(self.layer1(emb_graph))  # 1*2*emb_size
         x = torch.mean(x, dim=1)  # 1*emb_size
         x = torch.sigmoid(self.layer2(x))  # 1*2
 
