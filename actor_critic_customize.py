@@ -105,13 +105,14 @@ origin_frozen_nodes = [1, 3, 5, 7, 9, 11, 13, 15]
 
 
 # パラメータ
-test_name = "trial1"  # 実験名
-node_out_features = 3
-node_features = 3  # 座標2つ，ラベル1つ
+test_name = "edge_thick_02"  # 実験名
+node_out_features = 5
+node_features = 3  # 座標2つ，ラベル1つ.変わらない値．
 gamma = 0.99  # 割引率
 lr = 0.03  # 学習率
 train_num = 10  # 学習回数
 max_action = 500  # 1episodeの最大試行回数
+EDGE_THICKNESS = 0.2  # エッジの太さ
 log_dir = "results/{}".format(test_name)
 
 if not os.path.exists(log_dir):
@@ -140,7 +141,7 @@ Edge_thickness = model.Edge_thickness_model(
 new_node_pos, new_input_nodes, new_input_vectors, new_output_nodes, new_output_vectors, new_frozen_nodes, new_edges_indices, new_edges_thickness = make_main_node_edge_info(origin_nodes_positions, origin_edges_indices, origin_input_nodes, origin_input_vectors,
                                                                                                                                                                             origin_output_nodes, origin_output_vectors, origin_frozen_nodes)
 env = FEMGym(new_node_pos,
-             new_edges_indices, new_edges_thickness)
+             new_edges_indices, new_edges_thickness*EDGE_THICKNESS)
 
 Saved_Action = namedtuple('SavedAction', ['action', 'value'])
 Saved_prob_Action = namedtuple('SavedAction', ['log_prob'])
@@ -400,6 +401,7 @@ def main():
 
     # １エピソードのループ
     state = env.reset()
+    env.render(os.path.join(log_dir, 'render_image/first.png'))
     nodes_pos, _, _, _ = env.extract_node_edge_info()
     first_node_num = nodes_pos.shape[0]
 
