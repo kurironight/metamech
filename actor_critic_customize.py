@@ -365,9 +365,11 @@ def finish_episode():
 
 
 def main():
-    running_reward = 10
+    running_reward = 0
     prior_efficiency = 0
     penalty = 0.001
+
+    max_action = 100
 
     # １エピソードのループ
     state = env.reset()
@@ -375,7 +377,7 @@ def main():
     first_node_num = nodes_pos.shape[0]
 
     # run inifinitely many episodes
-    for i_episode in tqdm(range(1)):
+    for i_episode in tqdm(range(1000)):
 
         # reset environment and episode reward
         state = env.reset()
@@ -383,7 +385,7 @@ def main():
 
         # for each episode, only run 9999 steps so that we don't
         # infinite loop while learning
-        for t in range(1):
+        for t in range(max_action):
             # select action from policy
             action = select_action(first_node_num)
             nodes_pos, edges_indices, edges_thickness, adj = env.extract_node_edge_info()
@@ -395,6 +397,8 @@ def main():
             elif env.confirm_graph_is_connected():
                 reward = env.calculate_simulation()-prior_efficiency
                 prior_efficiency = reward
+            elif (t == (max_action-1)) and (done is not True):  # max_action内にてactionが終わらない時
+                reward = -2
             else:  # 連結していない状態の時
                 reward = -penalty
 
@@ -409,6 +413,7 @@ def main():
         #
         # perform backprop
         finish_episode()
+        print("episode:{} running_reward:{}".format(i_episode, running_reward))
 
 
 if __name__ == '__main__':
