@@ -7,6 +7,8 @@ from metamech.viz import show_actuator
 import networkx as nx
 import os
 
+gym.logger.set_level(40)
+
 MAX_NODE = 100
 LINEAR_STIFFNESS = 10
 ANGULAR_STIFFNESS = 0.2
