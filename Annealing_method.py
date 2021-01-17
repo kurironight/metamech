@@ -1,3 +1,7 @@
+"""
+Use the Annealing method with FEM gym
+"""
+
 import numpy as np
 from env.gym_fem import FEMGym
 from tqdm import tqdm
@@ -5,11 +9,12 @@ import os
 import pickle
 from tools.plot import plot_efficiency_history
 
+# PARAMETER
 initial_temperature = 0.06
 final_temperature = 0.001
-steps = 500  # 試行回数
+steps = 5000  # 試行回数
 EDGE_THICKNESS = 0.2  # エッジの太さ
-test_name = "500_revise2"
+test_name = "5000"
 
 # 学習の推移
 history = {}
@@ -22,6 +27,7 @@ log_dir = "prior_thesis_results/{}".format(test_name)
 if not os.path.exists(log_dir):
     os.makedirs(log_dir)
 
+assert steps > 100, 'steps must be bigger than 100'
 # tempリストの準備
 temperatures = np.linspace(
     initial_temperature, final_temperature, num=100)
@@ -123,7 +129,7 @@ else:
 
 current_edges_indices = origin_edges_indices.copy()
 
-for epoch, temperature in tqdm(enumerate(temperatures)):
+for epoch, temperature in enumerate(temperatures):
     # 条件ノードの間にあるエッジ以外のエッジを選択
     while(1):
         chosen_edge_indice = np.random.randint(0, edge_num)
