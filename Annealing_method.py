@@ -12,9 +12,9 @@ from tools.plot import plot_efficiency_history
 # PARAMETER
 initial_temperature = 0.06
 final_temperature = 0.001
-steps = 5000  # 試行回数
+steps = 101  # 試行回数
 EDGE_THICKNESS = 0.2  # エッジの太さ
-test_name = "5000"
+test_name = "test"
 
 # 学習の推移
 history = {}
@@ -129,7 +129,7 @@ else:
 
 current_edges_indices = origin_edges_indices.copy()
 
-for epoch, temperature in enumerate(temperatures):
+for epoch, temperature in enumerate(tqdm(temperatures)):
     # 条件ノードの間にあるエッジ以外のエッジを選択
     while(1):
         chosen_edge_indice = np.random.randint(0, edge_num)
