@@ -105,13 +105,17 @@ origin_frozen_nodes = [1, 3, 5, 7, 9, 11, 13, 15]
 
 
 # パラメータ
-test_name = "edge_thick_02"  # 実験名
+test_name = "test_taskset1"  # 実験名
 node_out_features = 5
 node_features = 3  # 座標2つ，ラベル1つ.変わらない値．
 gamma = 0.99  # 割引率
 lr = 0.03  # 学習率
 train_num = 10  # 学習回数
 max_action = 500  # 1episodeの最大試行回数
+penalty = 0.001  # 連続状態から不連続状態になった時のペナルティ
+final_penalty = 2  # 時刻内に終了しなかった場合のペナルティ
+continuous_reward = 2  # 連続状態に初めてなったときにあげる報酬
+
 EDGE_THICKNESS = 0.2  # エッジの太さ
 log_dir = "results/{}".format(test_name)
 
@@ -393,8 +397,7 @@ def save_model(save_name="Good"):
 def main():
     # running_reward = 0
     prior_efficiency = 0
-    penalty = 0.001  # 時刻内に終了しなかった場合のペナルティ
-    final_penalty = 2  # 時刻内に終了しなかった場合のペナルティ
+    continuous_trigger = 0
 
     best_efficiency = -1000
     best_epoch = 0
@@ -422,15 +425,18 @@ def main():
 
             # take the action
             state, _, done, info = env.step(action)
-            if info['status'] == 1:  # 初期ノードに対してエッジを選択しているとき
-                reward = -penalty
-            elif env.confirm_graph_is_connected():
-                reward = env.calculate_simulation()-prior_efficiency
-                prior_efficiency = reward
-            elif (t == (max_action-1)) and (done is not True):  # max_action内にてactionが終わらない時
+            if (t == (max_action-1)) and (done is not True):  # max_action内にてactionが終わらない時
                 reward = -final_penalty
-            else:  # 連結していない状態の時
+            elif env.confirm_graph_is_connected():
+                efficiency = env.calculate_simulation()
+                reward = efficiency-prior_efficiency
+                prior_efficiency = efficiency
+                if continuous_trigger == 0:
+                    continuous_trigger = 1
+            elif continuous_trigger == 1:
                 reward = -penalty
+            else:
+                reward = 0
 
             GCN.rewards.append(reward)
 
