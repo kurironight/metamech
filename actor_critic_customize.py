@@ -428,11 +428,15 @@ def main():
             if (t == (max_action-1)) and (done is not True):  # max_action内にてactionが終わらない時
                 reward = -final_penalty
             elif env.confirm_graph_is_connected():
+                print("continuous!!")
                 efficiency = env.calculate_simulation()
-                reward = efficiency-prior_efficiency
-                prior_efficiency = efficiency
-                if continuous_trigger == 0:
+                if continuous_trigger == 1:
+                    reward = efficiency-prior_efficiency
+                else:
+                    reward = efficiency+continuous_reward
                     continuous_trigger = 1
+                prior_efficiency = efficiency
+
             elif continuous_trigger == 1:
                 reward = -penalty
             else:
