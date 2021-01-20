@@ -64,6 +64,31 @@ class LinearSpring:
         return r0
 
 
+class EdgeInfoLinearSpring:
+    def __init__(
+        self,
+        nodes: Tuple["Node", "Node"],
+        stiffness: float,
+        thickness: float,
+    ) -> None:
+        """Linear spring between two nodes"""
+        self._nodes = nodes
+        self._edge_thickness = thickness  # ADD
+        self.resting_length = self._get_resting_length()
+        self.stiffness = stiffness / \
+            (self.resting_length/REF_LENGTH) * \
+            (self._edge_thickness/REF_THICKNESS)  # ADD
+        # self.stiffness = stiffness  # TODO 幅や長さに応じてばね定数を変えたときに発散してしまっていた．その為，こちらにした．
+        self._neighbouring_linear_springs: Set["LinearSpring"] = OrderedSet()
+
+    def _get_resting_length(self) -> float:
+        node_u, node_v = self._nodes
+        ux, vx = node_u.x, node_v.x
+        uy, vy = node_u.y, node_v.y
+        r0 = np.sqrt((ux - vx) ** 2 + (uy - vy) ** 2)
+        return r0
+
+
 class AngularSpring:
     def __init__(
         self,

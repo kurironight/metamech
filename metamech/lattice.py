@@ -22,7 +22,7 @@
 Classes to hold regular and irregular configurations
 """
 from .node import Node
-from .spring import LinearSpring
+from .spring import LinearSpring, EdgeInfoLinearSpring
 from .io import _get_lammps_string
 
 from typing import Optional
@@ -232,3 +232,37 @@ class Lattice:
             if a == c or a == d or b == c or b == d:
                 edge1._neighbouring_linear_springs.add(edge2)
                 edge2._neighbouring_linear_springs.add(edge1)
+
+
+class EdgeInfoLattice(Lattice):
+
+    def __init__(
+        self,
+        nodes_positions: Dict[Tuple[int, int], float],
+        edges_indices: Dict[Tuple[int, int], int],
+        edges_thickness: List,
+        linear_stiffness: float = 10,
+        angular_stiffness: float = 0.2
+    ) -> None:
+        super().__init__(
+            nodes_positions,
+            edges_indices,
+            edges_thickness,
+            linear_stiffness,
+            angular_stiffness)
+        self.edges: Set[EdgeInfoLinearSpring] = OrderedSet()
+
+        # set recursion limit large enough
+        # to allow for deepcopy operation
+        self._set_recursion_limit()
+
+    def _generate_possible_edges(self):
+        """create a bag of possible edges"""
+        ii = self._edges_indices.T[0]
+        jj = self._edges_indices.T[1]
+        self._possible_edges = [
+            EdgeInfoLinearSpring(
+                nodes=(self.nodes[i], self.nodes[j]), stiffness=stiffness,
+                thickness=thickness)
+            for i, j, stiffness, thickness
+            in zip(ii, jj, self._edge_stiffness, self.edges_thickness)]  # ADD

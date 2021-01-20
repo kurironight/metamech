@@ -1,7 +1,7 @@
 import numpy as np
 import gym
 from tools.graph import convert_edge_indices_to_adj
-from metamech.lattice import Lattice
+from metamech.lattice import Lattice, EdgeInfoLattice
 from metamech.actuator import Actuator
 from metamech.viz import show_actuator
 import networkx as nx
@@ -242,3 +242,64 @@ class MetamechGym(gym.Env):
         self.info['edges'] = {
             'indices': edges_indices,
         }
+
+
+class EdgeInfoMetamechGym(MetamechGym):
+    def __init__(self, node_pos, input_nodes, input_vectors, output_nodes,
+                 output_vectors, frozen_nodes, edges_indices, edges_thickness):
+        super().__init__(node_pos, input_nodes, input_vectors, output_nodes,
+                         output_vectors, frozen_nodes, edges_indices, edges_thickness)
+
+    def calculate_simulation(self):
+        nodes_pos, edges_indices, edges_thickness, _ = self.extract_node_edge_info()
+
+        lattice = EdgeInfoLattice(
+            nodes_positions=nodes_pos,
+            edges_indices=edges_indices,
+            edges_thickness=edges_thickness,
+            linear_stiffness=LINEAR_STIFFNESS,
+            angular_stiffness=ANGULAR_STIFFNESS
+        )
+
+        for edge in lattice._possible_edges:
+            lattice.flip_edge(edge)
+
+        actuator = Actuator(
+            lattice=lattice,
+            input_nodes=self.input_nodes,
+            input_vectors=self.input_vectors,
+            output_nodes=self.output_nodes,
+            output_vectors=self.output_vectors,
+            frozen_nodes=self.frozen_nodes
+        )
+
+        return actuator.efficiency
+
+    # 環境の描画
+    def render(self, save_path="image.png"):
+        dir_name = os.path.dirname(save_path)
+        if not os.path.exists(dir_name):
+            os.makedirs(dir_name)
+
+        nodes_pos, edges_indices, edges_thickness, _ = self.extract_node_edge_info()
+
+        lattice = EdgeInfoLattice(
+            nodes_positions=nodes_pos,
+            edges_indices=edges_indices,
+            edges_thickness=edges_thickness,
+            linear_stiffness=LINEAR_STIFFNESS,
+            angular_stiffness=ANGULAR_STIFFNESS
+        )
+
+        for edge in lattice._possible_edges:
+            lattice.flip_edge(edge)
+
+        actuator = Actuator(
+            lattice=lattice,
+            input_nodes=self.input_nodes,
+            input_vectors=self.input_vectors,
+            output_nodes=self.output_nodes,
+            output_vectors=self.output_vectors,
+            frozen_nodes=self.frozen_nodes
+        )
+        show_actuator(actuator, save_path=save_path)
