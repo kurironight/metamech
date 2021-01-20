@@ -52,3 +52,20 @@ def plot_efficiency_history(history, save_path):
     ax.set_title("efficiency curve")
     plt.savefig(save_path)
     plt.close()
+
+
+def plot_steps_history(history, save_path):
+    epochs = history['epoch']
+    results = history['steps']
+    epochs = np.array(epochs)
+    results = np.array(results)
+
+    fig = plt.figure()
+    ax = fig.add_subplot(1, 1, 1)
+    ax.plot(epochs, results, label='steps')
+    ax.set_xlim(1, max(epochs))
+    ax.set_xlabel('epoch')
+    ax.legend()
+    ax.set_title("steps curve")
+    plt.savefig(save_path)
+    plt.close()
