@@ -128,9 +128,11 @@ class MetamechGym(gym.Env):
                 self.info['status'] = 2
             return obs, reward, False, self.info
 
+        self.info['status'] = 3
         # 通常ルート
         if action['which_node'][1] == node_num:  # 新規ノードを追加する場合
             nodes_pos = np.concatenate([nodes_pos, action['new_node']])
+            self.info['status'] = 4
 
         edges_indices = np.concatenate([edges_indices, np.array(
             [[action['which_node'][0], action['which_node'][1]]])])
@@ -141,7 +143,6 @@ class MetamechGym(gym.Env):
         self._renew_current_obs(nodes_pos, edges_indices, edges_thickness)
 
         reward = 0
-        self.info['status'] = 3
 
         return self.current_obs, reward, False, self.info
 
