@@ -1,14 +1,12 @@
 import numpy as np
 from FEM.make_structure import make_bar_structure
-from FEM.fem import FEM, FEM_displacement
+from FEM.fem import FEM, FEM_displacement, MAX_EDGE_THICKNESS
 import matplotlib.pyplot as plt
 from .gym_metamech import MetamechGym
 import cv2
 import os
 
-MAX_NODE = 100
 PIXEL = 50
-MAX_EDGE_THICKNESS = 5
 
 
 class FEMGym(MetamechGym):

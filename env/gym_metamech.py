@@ -12,6 +12,7 @@ gym.logger.set_level(40)
 MAX_NODE = 100
 LINEAR_STIFFNESS = 10
 ANGULAR_STIFFNESS = 0.2
+MAX_EDGE_THICKNESS = 5
 
 
 class MetamechGym(gym.Env):
@@ -168,7 +169,7 @@ class MetamechGym(gym.Env):
         lattice = Lattice(
             nodes_positions=nodes_pos,
             edges_indices=edges_indices,
-            edges_thickness=edges_thickness,
+            edges_thickness=MAX_EDGE_THICKNESS*edges_thickness,
             linear_stiffness=LINEAR_STIFFNESS,
             angular_stiffness=ANGULAR_STIFFNESS
         )
