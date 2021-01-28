@@ -14,7 +14,7 @@ import torch.distributions as tdist
 from tools.lattice_preprocess import make_main_node_edge_info
 from tqdm import tqdm
 from itertools import count
-from tools.plot import plot_loss_history, plot_reward_history, plot_efficiency_history
+from tools.plot import plot_loss_history, plot_reward_history, plot_efficiency_history, plot_steps_history
 
 # 初期のノードの状態を抽出
 origin_nodes_positions = np.array([
@@ -105,12 +105,12 @@ origin_frozen_nodes = [1, 3, 5, 7, 9, 11, 13, 15]
 
 
 # パラメータ
-test_name = "test_taskset1"  # 実験名
+test_name = "confirm_steps_for_happyou"  # 実験名
 node_out_features = 5
 node_features = 3  # 座標2つ，ラベル1つ.変わらない値．
 gamma = 0.99  # 割引率
 lr = 0.03  # 学習率
-train_num = 10  # 学習回数
+train_num = 50000  # 学習回数
 max_action = 500  # 1episodeの最大試行回数
 penalty = 0.001  # 連続状態から不連続状態になった時のペナルティ
 final_penalty = 2  # 時刻内に終了しなかった場合のペナルティ
@@ -128,6 +128,7 @@ history['epoch'] = []
 history['loss'] = []
 history['ep_reward'] = []
 history['result_efficiency'] = []
+history['steps'] = []
 
 
 # モデル定義
@@ -143,9 +144,9 @@ Edge_thickness = model.Edge_thickness_model(
 
 # gymに入力する要素を抽出
 new_node_pos, new_input_nodes, new_input_vectors, new_output_nodes, new_output_vectors, new_frozen_nodes, new_edges_indices, new_edges_thickness = make_main_node_edge_info(origin_nodes_positions, origin_edges_indices, origin_input_nodes, origin_input_vectors,
-                                                                                                                                                                            origin_output_nodes, origin_output_vectors, origin_frozen_nodes)
+                                                                                                                                                                            origin_output_nodes, origin_output_vectors, origin_frozen_nodes, EDGE_THICKNESS)
 env = FEMGym(new_node_pos,
-             new_edges_indices, new_edges_thickness*EDGE_THICKNESS)
+             new_edges_indices, new_edges_thickness)
 
 Saved_Action = namedtuple('SavedAction', ['action', 'value'])
 Saved_prob_Action = namedtuple('SavedAction', ['log_prob'])
@@ -409,8 +410,8 @@ def main():
     first_node_num = nodes_pos.shape[0]
 
     # run inifinitely many episodes
-    # for epoch in tqdm(range(train_num)):
-    for epoch in count(1):
+    for epoch in tqdm(range(train_num)):
+        # for epoch in count(1):
 
         # reset environment and episode reward
         state = env.reset()
@@ -446,6 +447,8 @@ def main():
 
             ep_reward += reward
             if done:
+                steps = t
+                #print("step:", t)
                 break
 
         # update cumulative reward
@@ -471,6 +474,7 @@ def main():
         history['loss'].append(loss)
         history['ep_reward'].append(ep_reward)
         history['result_efficiency'].append(result_efficiency)
+        history['steps'].append(steps+1)
 
         # 学習履歴を保存
         with open(os.path.join(log_dir, 'history.pkl'), 'wb') as f:
@@ -489,9 +493,8 @@ def main():
             log_dir, 'learning_reward_curve.png'))
         plot_efficiency_history(history, os.path.join(
             log_dir, 'learning_effi_curve.png'))
-
-        if result_efficiency > 0:
-            break
+        plot_steps_history(history, os.path.join(
+            log_dir, 'learning_steps_curve.png'))
 
 
 if __name__ == '__main__':
