@@ -1,8 +1,8 @@
 import numpy as np
 from FEM.make_structure import make_bar_structure
-from FEM.fem import FEM, FEM_displacement, MAX_EDGE_THICKNESS
+from FEM.fem import FEM, FEM_displacement
 import matplotlib.pyplot as plt
-from .gym_metamech import MetamechGym
+from .gym_metamech import MetamechGym, MAX_EDGE_THICKNESS
 import cv2
 import os
 
