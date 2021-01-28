@@ -106,7 +106,7 @@ origin_frozen_nodes = [1, 3, 5, 7, 9, 11, 13, 15]
 
 
 # パラメータ
-test_name = "test"  # 実験名
+test_name = "continuous_random"  # 実験名
 node_out_features = 5
 node_features = 3  # 座標2つ，ラベル1つ.変わらない値．
 gamma = 0.99  # 割引率
@@ -410,8 +410,14 @@ def main():
     best_epoch = 0
 
     # １エピソードのループ
-    state = env.reset()
-    env.render(os.path.join(log_dir, 'render_image/first.png'))
+    while(1):
+        new_node_pos, new_edges_indices, new_edges_thickness = make_continuous_init_graph(origin_nodes_positions, origin_edges_indices, origin_input_nodes, origin_input_vectors,
+                                                                                          origin_output_nodes, origin_output_vectors, origin_frozen_nodes, EDGE_THICKNESS)
+        env = FEMGym(new_node_pos,
+                     new_edges_indices, new_edges_thickness)
+        env.reset()
+        if env.confirm_graph_is_connected():
+            break
     nodes_pos, _, _, _ = env.extract_node_edge_info()
     first_node_num = nodes_pos.shape[0]
 
@@ -420,6 +426,14 @@ def main():
         # for epoch in count(1):
 
         # reset environment and episode reward
+        while(1):
+            new_node_pos, new_edges_indices, new_edges_thickness = make_continuous_init_graph(origin_nodes_positions, origin_edges_indices, origin_input_nodes, origin_input_vectors,
+                                                                                              origin_output_nodes, origin_output_vectors, origin_frozen_nodes, EDGE_THICKNESS)
+            env = FEMGym(new_node_pos,
+                         new_edges_indices, new_edges_thickness)
+            env.reset()
+            if env.confirm_graph_is_connected():
+                break
         state = env.reset()
         ep_reward = 0
 
@@ -435,7 +449,6 @@ def main():
             if (t == (max_action-1)) and (done is not True):  # max_action内にてactionが終わらない時
                 reward = -final_penalty
             elif env.confirm_graph_is_connected():
-                print("continuous!!")
                 efficiency = env.calculate_simulation()
                 if continuous_trigger == 1:
                     reward = efficiency-prior_efficiency
@@ -454,7 +467,6 @@ def main():
             ep_reward += reward
             if done:
                 steps = t
-                #print("step:", t)
                 break
 
         # update cumulative reward
