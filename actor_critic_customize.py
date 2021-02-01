@@ -119,8 +119,8 @@ continuous_reward = 2  # 連続状態に初めてなったときにあげる報�
 EDGE_THICKNESS = 0.2  # エッジの太さ
 log_dir = "results/{}".format(test_name)
 
-if not os.path.exists(log_dir):
-    os.makedirs(log_dir)
+assert not os.path.exists(log_dir), "already folder exists"
+os.makedirs(log_dir)
 
 # 学習の推移
 history = {}

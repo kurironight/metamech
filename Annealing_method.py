@@ -24,8 +24,8 @@ history['result_efficiency'] = []
 # directoryの作成
 log_dir = "prior_thesis_results/{}".format(test_name)
 
-if not os.path.exists(log_dir):
-    os.makedirs(log_dir)
+assert not os.path.exists(log_dir), "already folder exists"
+os.makedirs(log_dir)
 
 assert steps > 100, 'steps must be bigger than 100'
 # tempリストの準備
